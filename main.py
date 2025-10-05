@@ -56,6 +56,7 @@ class MusicPlayerApp:
         
         # Threading
         self.web_thread = None
+        self.player_update_thread = None
         self.running = False
         
         logger.info(f"Music Player initialized with config dir: {self.config_dir}")
@@ -87,6 +88,9 @@ class MusicPlayerApp:
                 
                 # Set up player engine callbacks for web updates
                 self._setup_player_web_integration()
+                
+                # Initialize web display with current song data
+                self._initialize_web_display()
             else:
                 logger.info("Web server disabled")
             
@@ -115,65 +119,123 @@ class MusicPlayerApp:
     
     def _setup_player_web_integration(self):
         """Set up integration between player engine and web server for real-time updates."""
-        def on_song_changed(song):
-            """Handle song change events and update web display."""
-            try:
-                if self.web_server and song:
-                    # Extract artwork URL if available
-                    artwork_url = None
-                    if song.artwork_path and os.path.exists(song.artwork_path):
-                        # Convert local artwork path to web-accessible URL
-                        artwork_filename = os.path.basename(song.artwork_path)
+        # Don't set callbacks here if GUI is enabled - instead enhance GUI callbacks
+        if not self.enable_gui:
+            # Only set callbacks if GUI is disabled (headless mode)
+            def on_song_changed(song):
+                """Handle song change events and update web display."""
+                self._update_web_display_for_song(song)
+            
+            def on_state_changed(state):
+                """Handle playback state changes and update web display."""
+                self._update_web_display_for_state(state)
+            
+            # Set up callbacks for headless mode
+            self.player_engine.set_on_song_changed(on_song_changed)
+            self.player_engine.set_on_state_changed(on_state_changed)
+            logger.info("Player-web integration callbacks set up for headless mode")
+        else:
+            logger.info("GUI enabled - web integration will be handled through GUI callbacks")
+    
+    def _update_web_display_for_song(self, song):
+        """Update web display when song changes."""
+        try:
+            logger.info(f"Updating web display for song: {song.get_display_name() if song else 'None'}")
+            if self.web_server and song:
+                # Extract artwork URL if available
+                artwork_url = None
+                if song.artwork_path:
+                    # Convert local artwork path to web-accessible URL
+                    artwork_filename = os.path.basename(song.artwork_path)
+                    # Check if artwork file exists in the expected location
+                    artwork_full_path = os.path.join(self.config_dir, "artwork", artwork_filename)
+                    if os.path.exists(artwork_full_path):
                         artwork_url = f"/static/artwork/{artwork_filename}"
-                    
-                    # Update web display
-                    self.web_server.update_song_data(
-                        title=song.title,
-                        artist=song.artist,
-                        artwork_url=artwork_url,
-                        is_playing=self.player_engine.is_playing()
-                    )
-                    logger.debug(f"Updated web display: {song.get_display_name()}")
-                    
-            except Exception as e:
-                logger.error(f"Error updating web display on song change: {e}")
-        
-        def on_state_changed(state):
-            """Handle playback state changes and update web display."""
-            try:
-                if self.web_server:
-                    current_song = self.player_engine.get_current_song()
-                    if current_song:
-                        # Update playing state
-                        self.web_server.update_song_data(
-                            title=current_song.title,
-                            artist=current_song.artist,
-                            artwork_url=self.web_server.current_song_data.get('artwork_url'),
-                            is_playing=self.player_engine.is_playing()
-                        )
                     else:
-                        # No song playing
-                        self.web_server.update_song_data(
-                            title="No song playing",
-                            artist="Music Player",
-                            artwork_url=None,
-                            is_playing=False
-                        )
-                    logger.debug(f"Updated web display state: {state.value}")
-                    
-            except Exception as e:
-                logger.error(f"Error updating web display on state change: {e}")
-        
-        # Set up callbacks
-        self.player_engine.set_on_song_changed(on_song_changed)
-        self.player_engine.set_on_state_changed(on_state_changed)
-        
-        logger.info("Player-web integration callbacks set up")
+                        logger.warning(f"Artwork file not found: {artwork_full_path}")
+                        # Try the original path as fallback
+                        if os.path.exists(song.artwork_path):
+                            artwork_url = f"/static/artwork/{artwork_filename}"
+                        else:
+                            # Use placeholder image
+                            artwork_url = "/static/artwork/placeholder.jpg"
+                else:
+                    # No artwork path, use placeholder
+                    artwork_url = "/static/artwork/placeholder.jpg"
+                
+                # Update web display
+                status = self._get_status_string(self.player_engine.get_state())
+                self.web_server.update_song_data(
+                    title=song.title,
+                    artist=song.artist,
+                    artwork_url=artwork_url,
+                    is_playing=self.player_engine.is_playing(),
+                    status=status
+                )
+                logger.debug(f"Updated web display: {song.get_display_name()}")
+                
+        except Exception as e:
+            logger.error(f"Error updating web display on song change: {e}")
+    
+    def _update_web_display_for_state(self, state):
+        """Update web display when playback state changes."""
+        try:
+            if self.web_server:
+                status = self._get_status_string(state)
+                current_song = self.player_engine.get_current_song()
+                if current_song:
+                    # Update playing state
+                    self.web_server.update_song_data(
+                        title=current_song.title,
+                        artist=current_song.artist,
+                        artwork_url=self.web_server.current_song_data.get('artwork_url'),
+                        is_playing=self.player_engine.is_playing(),
+                        status=status
+                    )
+                else:
+                    # No song playing
+                    self.web_server.update_song_data(
+                        title="No song playing",
+                        artist="Music Player",
+                        artwork_url="/static/artwork/placeholder.jpg",
+                        is_playing=False,
+                        status=status
+                    )
+                logger.debug(f"Updated web display state: {state.value}")
+                
+        except Exception as e:
+            logger.error(f"Error updating web display on state change: {e}")
     
     def _setup_gui_web_integration(self):
         """Set up additional integration between GUI and web server."""
-        # The GUI already has callbacks set up with the player engine,
-        # so web updates will happen automatically through the player callbacks.
+        # Enhance the GUI callbacks to also update the web display
+        # Store references to the original GUI callbacks
+        original_gui_song_callback = self.gui._on_song_changed
+        original_gui_state_callback = self.gui._on_playback_state_changed
+        
+        def enhanced_song_callback(song):
+            """Enhanced song callback that updates both GUI and web."""
+            # Call original GUI callback
+            original_gui_song_callback(song)
+            # Also update web display
+            self._update_web_display_for_song(song)
+        
+        def enhanced_state_callback(state):
+            """Enhanced state callback that updates both GUI and web."""
+            # Call original GUI callback
+            original_gui_state_callback(state)
+            # Also update web display
+            self._update_web_display_for_state(state)
+        
+        # Replace the GUI callbacks with enhanced versions
+        self.gui._on_song_changed = enhanced_song_callback
+        self.gui._on_playback_state_changed = enhanced_state_callback
+        
+        # Re-set the callbacks on the player engine with the enhanced versions
+        self.player_engine.set_on_song_changed(enhanced_song_callback)
+        self.player_engine.set_on_state_changed(enhanced_state_callback)
+        
+        logger.info("Enhanced GUI callbacks with web integration")
         
         # Override playlist manager methods to ensure player engine stays synchronized
         original_add_song = self.playlist_manager.add_song
@@ -189,16 +251,23 @@ class MusicPlayerApp:
                 # Update web display if this is the first song or current song
                 current_song = self.playlist_manager.get_current_song()
                 if current_song and self.web_server:
-                    artwork_url = None
-                    if current_song.artwork_path and os.path.exists(current_song.artwork_path):
+                    artwork_url = "/static/artwork/placeholder.jpg"  # Default to placeholder
+                    if current_song.artwork_path:
                         artwork_filename = os.path.basename(current_song.artwork_path)
-                        artwork_url = f"/static/artwork/{artwork_filename}"
+                        # Check if artwork file exists in the expected location
+                        artwork_full_path = os.path.join(self.config_dir, "artwork", artwork_filename)
+                        if os.path.exists(artwork_full_path):
+                            artwork_url = f"/static/artwork/{artwork_filename}"
+                        elif os.path.exists(current_song.artwork_path):
+                            artwork_url = f"/static/artwork/{artwork_filename}"
                     
+                    status = self._get_status_string(self.player_engine.get_state())
                     self.web_server.update_song_data(
                         title=current_song.title,
                         artist=current_song.artist,
                         artwork_url=artwork_url,
-                        is_playing=self.player_engine.is_playing()
+                        is_playing=self.player_engine.is_playing(),
+                        status=status
                     )
             return result
         
@@ -218,6 +287,26 @@ class MusicPlayerApp:
             result = original_set_current_song(*args, **kwargs)
             if result:
                 self._update_player_playlist()
+                # Also trigger web display update for the new current song
+                if self.web_server and result:
+                    artwork_url = "/static/artwork/placeholder.jpg"  # Default to placeholder
+                    if result.artwork_path:
+                        artwork_filename = os.path.basename(result.artwork_path)
+                        artwork_full_path = os.path.join(self.config_dir, "artwork", artwork_filename)
+                        if os.path.exists(artwork_full_path):
+                            artwork_url = f"/static/artwork/{artwork_filename}"
+                        elif os.path.exists(result.artwork_path):
+                            artwork_url = f"/static/artwork/{artwork_filename}"
+                    
+                    status = self._get_status_string(self.player_engine.get_state())
+                    self.web_server.update_song_data(
+                        title=result.title,
+                        artist=result.artist,
+                        artwork_url=artwork_url,
+                        is_playing=self.player_engine.is_playing(),
+                        status=status
+                    )
+                    logger.info(f"Updated web display from playlist selection: {result.get_display_name()}")
             return result
         
         def synchronized_set_loop_enabled(*args, **kwargs):
@@ -233,10 +322,86 @@ class MusicPlayerApp:
         
         logger.info("GUI-web integration with playlist synchronization set up")
     
+    def _initialize_web_display(self):
+        """Initialize web display with current song data from playlist."""
+        try:
+            if self.web_server and self.playlist_manager:
+                current_song = self.playlist_manager.get_current_song()
+                if current_song:
+                    # Generate artwork URL for current song
+                    artwork_url = "/static/artwork/placeholder.jpg"  # Default to placeholder
+                    if current_song.artwork_path:
+                        artwork_filename = os.path.basename(current_song.artwork_path)
+                        # Check if artwork file exists in the expected location
+                        artwork_full_path = os.path.join(self.config_dir, "artwork", artwork_filename)
+                        if os.path.exists(artwork_full_path):
+                            artwork_url = f"/static/artwork/{artwork_filename}"
+                        elif os.path.exists(current_song.artwork_path):
+                            artwork_url = f"/static/artwork/{artwork_filename}"
+                    
+                    # Update web display with current song
+                    status = self._get_status_string(self.player_engine.get_state())
+                    self.web_server.update_song_data(
+                        title=current_song.title,
+                        artist=current_song.artist,
+                        artwork_url=artwork_url,
+                        is_playing=False,  # Not playing initially
+                        status=status
+                    )
+                    logger.info(f"Initialized web display with current song: {current_song.get_display_name()}")
+                else:
+                    # No current song, use default display
+                    status = self._get_status_string(self.player_engine.get_state())
+                    self.web_server.update_song_data(
+                        title="No song playing",
+                        artist="Music Player",
+                        artwork_url="/static/artwork/placeholder.jpg",
+                        is_playing=False,
+                        status=status
+                    )
+                    logger.info("Initialized web display with default state (no current song)")
+        except Exception as e:
+            logger.error(f"Error initializing web display: {e}")
+    
+    def _get_status_string(self, state):
+        """Convert PlaybackState enum to string for web display."""
+        from core.player_engine import PlaybackState
+        
+        if state == PlaybackState.PLAYING:
+            return "Playing"
+        elif state == PlaybackState.PAUSED:
+            return "Paused"
+        elif state == PlaybackState.STOPPED:
+            return "Stopped"
+        elif state == PlaybackState.LOADING:
+            return "Loading"
+        else:
+            return "Stopped"
+    
     def _update_player_playlist(self):
         """Update player engine with current playlist state."""
         if self.player_engine and self.playlist_manager:
             self.player_engine.set_playlist(self.playlist_manager.get_playlist())
+    
+    def _start_player_update_thread(self):
+        """Start a background thread to regularly update the player engine."""
+        def player_update_loop():
+            """Background loop to update player engine for pygame event processing."""
+            logger.info("Player update thread started")
+            while self.running:
+                try:
+                    if self.player_engine:
+                        self.player_engine.update()
+                    time.sleep(0.1)  # Update every 100ms, same as GUI
+                except Exception as e:
+                    logger.error(f"Error in player update thread: {e}")
+                    time.sleep(1)  # Wait longer on error to avoid spam
+            logger.info("Player update thread stopped")
+        
+        if not self.player_update_thread or not self.player_update_thread.is_alive():
+            self.player_update_thread = threading.Thread(target=player_update_loop, daemon=True)
+            self.player_update_thread.start()
+            logger.info("Started player update background thread")
     
     def start_web_server(self):
         """Start the web server in a separate thread."""
@@ -260,6 +425,9 @@ class MusicPlayerApp:
         
         self.running = True
         
+        # Start player update thread (essential for pygame event processing)
+        self._start_player_update_thread()
+        
         # Start web server (if enabled)
         if self.enable_web:
             if not self.start_web_server():
@@ -276,7 +444,8 @@ class MusicPlayerApp:
                 print("Use the GUI to manage your playlist and playback")
                 
                 # Run the GUI main loop (this will block until GUI is closed)
-                self.gui.run()
+                # Let GUI handle player updates for more reliable event processing
+                self.gui.run(skip_player_updates=False)
             else:
                 # Headless mode - keep running until interrupted
                 logger.info("Running in headless mode (web server only)")

@@ -33,8 +33,9 @@ class WebServer:
         self.current_song_data = {
             'title': 'No song playing',
             'artist': 'Music Player',
-            'artwork_url': None,
-            'is_playing': False
+            'artwork_url': '/static/artwork/placeholder.jpg',
+            'is_playing': False,
+            'status': 'Stopped'  # Play, Paused, Stopped
         }
         
         self._setup_routes()
@@ -71,14 +72,33 @@ class WebServer:
             """Serve artwork files."""
             try:
                 from flask import send_from_directory
-                artwork_dir = os.path.join('data', 'artwork')
-                if os.path.exists(os.path.join(artwork_dir, filename)):
+                # Use absolute path to artwork directory
+                artwork_dir = os.path.abspath(os.path.join('data', 'artwork'))
+                artwork_file_path = os.path.join(artwork_dir, filename)
+                
+                if os.path.exists(artwork_file_path):
+                    logger.debug(f"Serving artwork: {artwork_file_path}")
                     return send_from_directory(artwork_dir, filename)
                 else:
+                    logger.warning(f"Artwork file not found: {artwork_file_path}")
                     return jsonify({'error': 'Artwork not found'}), 404
             except Exception as e:
                 logger.error(f"Error serving artwork {filename}: {e}")
                 return jsonify({'error': 'Failed to serve artwork'}), 500
+        
+        @self.app.route('/api/next', methods=['POST'])
+        def next_song():
+            """API endpoint to advance to next song."""
+            # This would need to be connected to the player engine
+            # For now, return not implemented
+            return jsonify({'error': 'Not implemented - use GUI controls'}), 501
+        
+        @self.app.route('/api/previous', methods=['POST'])
+        def previous_song():
+            """API endpoint to go to previous song."""
+            # This would need to be connected to the player engine
+            # For now, return not implemented
+            return jsonify({'error': 'Not implemented - use GUI controls'}), 501
         
         @self.app.route('/api/config', methods=['GET', 'POST'])
         def handle_config():
@@ -218,7 +238,8 @@ class WebServer:
             'accent_color': '#ff6b6b',
             'show_artwork': True,
             'artwork_size': 200,
-            'layout': 'horizontal'
+            'layout': 'horizontal',
+            'show_status': True
         }
     
     def _find_available_port(self, start_port: int = 8080) -> int:
@@ -306,19 +327,41 @@ class WebServer:
         self.is_running = False
         logger.info("Web server stopped")
     
-    def update_song_data(self, title: str, artist: str, artwork_url: Optional[str] = None, is_playing: bool = True):
+    def update_song_data(self, title: str, artist: str, artwork_url: Optional[str] = None, is_playing: bool = True, status: str = 'Stopped'):
         """Update current song data and broadcast to all connected clients."""
         self.current_song_data = {
             'title': title,
             'artist': artist,
             'artwork_url': artwork_url,
-            'is_playing': is_playing
+            'is_playing': is_playing,
+            'status': status
         }
         
         # Broadcast update to all connected WebSocket clients
         if self.is_running:
-            self.socketio.emit('song_update', self.current_song_data)
-            logger.info(f"Broadcasted song update: {title} by {artist}")
+            try:
+                self.socketio.emit('song_update', self.current_song_data)
+                logger.info(f"Broadcasted song update: {title} by {artist} ({status})")
+            except Exception as e:
+                logger.error(f"Failed to broadcast song update: {e}")
+        else:
+            logger.warning(f"Cannot broadcast song update - server not running: {title} by {artist}")
+    
+    def update_status(self, status: str, is_playing: bool = None):
+        """Update only the playback status and broadcast to all connected clients."""
+        self.current_song_data['status'] = status
+        if is_playing is not None:
+            self.current_song_data['is_playing'] = is_playing
+        
+        # Broadcast update to all connected WebSocket clients
+        if self.is_running:
+            try:
+                self.socketio.emit('song_update', self.current_song_data)
+                logger.info(f"Broadcasted status update: {status}")
+            except Exception as e:
+                logger.error(f"Failed to broadcast status update: {e}")
+        else:
+            logger.warning(f"Cannot broadcast status update - server not running: {status}")
     
     def get_server_url(self) -> str:
         """Get the server URL."""

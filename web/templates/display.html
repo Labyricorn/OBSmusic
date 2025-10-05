@@ -69,8 +69,8 @@
             {% if song_data.artwork_url %}
             <img id="song-artwork" class="song-artwork" src="{{ song_data.artwork_url }}" alt="Album Artwork">
             {% endif %}
-            <div id="status-indicator" class="status-indicator">
-                {{ 'Playing' if song_data.is_playing else 'Stopped' }}
+            <div id="status-indicator" class="status-indicator" style="display: none;">
+                {{ song_data.status if song_data.status else ('Playing' if song_data.is_playing else 'Stopped') }}
             </div>
         </div>
     </div>
@@ -113,7 +113,7 @@
             }
             
             // Update status
-            statusElement.textContent = data.is_playing ? 'Playing' : 'Stopped';
+            statusElement.textContent = data.status || (data.is_playing ? 'Playing' : 'Stopped');
             
             // Update container class based on playing status
             if (data.is_playing && data.title !== 'No song playing') {
@@ -135,6 +135,7 @@
             const titleEl = document.getElementById('song-title');
             const artistEl = document.getElementById('song-artist');
             const artworkEl = document.getElementById('song-artwork');
+            const statusEl = document.getElementById('status-indicator');
             
             // Apply font settings
             if (config.font_family) {
@@ -160,6 +161,15 @@
             }
             if (artworkEl && config.show_artwork === false) {
                 artworkEl.style.display = 'none';
+            }
+            
+            // Apply status display settings
+            if (statusEl) {
+                if (config.show_status === false) {
+                    statusEl.style.display = 'none';
+                } else {
+                    statusEl.style.display = 'block';
+                }
             }
         }
         
