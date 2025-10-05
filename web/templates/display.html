@@ -25,8 +25,42 @@
             flex-direction: column;
         }
         
+        .song-container.horizontal {
+            flex-direction: row;
+            gap: 30px;
+        }
+        
+        .song-container.left-justified {
+            flex-direction: column;
+            align-items: flex-start;
+            text-align: left;
+            padding-left: 50px;
+        }
+        
+        .song-container.right-justified {
+            flex-direction: column;
+            align-items: flex-end;
+            text-align: right;
+            padding-right: 50px;
+        }
+        
         .song-info {
             text-align: center;
+        }
+        
+        .song-info.horizontal {
+            text-align: left;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .song-info.left-justified {
+            text-align: left;
+        }
+        
+        .song-info.right-justified {
+            text-align: right;
         }
         
         .song-title {
@@ -50,6 +84,25 @@
             display: block;
         }
         
+        .song-artwork.horizontal {
+            margin: 0;
+            flex-shrink: 0;
+        }
+        
+        .song-container.left-justified .song-artwork {
+            margin: 20px 0 20px 0;
+            align-self: flex-start;
+        }
+        
+        .song-container.right-justified .song-artwork {
+            margin: 20px 0 20px 0;
+            align-self: flex-end;
+        }
+        
+        .song-artwork.hidden {
+            display: none !important;
+        }
+        
         .status-indicator {
             font-size: 0.8em;
             color: #ff6b6b;
@@ -63,12 +116,12 @@
 </head>
 <body>
     <div class="song-container">
+        {% if song_data.artwork_url %}
+        <img id="song-artwork" class="song-artwork" src="{{ song_data.artwork_url }}" alt="Album Artwork">
+        {% endif %}
         <div class="song-info">
             <div id="song-title" class="song-title">{{ song_data.title }}</div>
             <div id="song-artist" class="song-artist">{{ song_data.artist }}</div>
-            {% if song_data.artwork_url %}
-            <img id="song-artwork" class="song-artwork" src="{{ song_data.artwork_url }}" alt="Album Artwork">
-            {% endif %}
             <div id="status-indicator" class="status-indicator" style="display: none;">
                 {{ song_data.status if song_data.status else ('Playing' if song_data.is_playing else 'Stopped') }}
             </div>
@@ -104,7 +157,9 @@
                     img.id = 'song-artwork';
                     img.className = 'song-artwork';
                     img.alt = 'Album Artwork';
-                    artistElement.insertAdjacentElement('afterend', img);
+                    const songContainer = document.querySelector('.song-container');
+                    const songInfo = document.querySelector('.song-info');
+                    songContainer.insertBefore(img, songInfo);
                 }
                 document.getElementById('song-artwork').src = data.artwork_url;
                 document.getElementById('song-artwork').style.display = 'block';
@@ -131,11 +186,21 @@
         
         // Apply configuration to the display
         function applyConfiguration(config) {
+            console.log('Applying configuration:', config);
+            
             const body = document.body;
             const titleEl = document.getElementById('song-title');
             const artistEl = document.getElementById('song-artist');
             const artworkEl = document.getElementById('song-artwork');
             const statusEl = document.getElementById('status-indicator');
+            const containerEl = document.querySelector('.song-container');
+            const songInfoEl = document.querySelector('.song-info');
+            
+            console.log('Elements found:', {
+                containerEl: !!containerEl,
+                songInfoEl: !!songInfoEl,
+                artworkEl: !!artworkEl
+            });
             
             // Apply font settings
             if (config.font_family) {
@@ -145,22 +210,86 @@
                 body.style.fontSize = config.font_size + 'px';
             }
             
+            // Apply artist font size
+            if (config.artist_font_size && artistEl) {
+                artistEl.style.fontSize = config.artist_font_size + 'px';
+            }
+            
             // Apply colors
             if (config.background_color) {
                 body.style.backgroundColor = config.background_color;
             }
             if (config.text_color) {
-                titleEl.style.color = config.text_color;
-                artistEl.style.color = config.text_color;
+                if (titleEl) titleEl.style.color = config.text_color;
+                if (artistEl) artistEl.style.color = config.text_color;
+            }
+            
+            // Apply layout settings
+            console.log('Layout setting:', config.layout);
+            
+            // Remove all layout classes first
+            const layoutClasses = ['horizontal', 'left-justified', 'right-justified'];
+            layoutClasses.forEach(layoutClass => {
+                if (containerEl) containerEl.classList.remove(layoutClass);
+                if (songInfoEl) songInfoEl.classList.remove(layoutClass);
+                if (artworkEl) artworkEl.classList.remove(layoutClass);
+            });
+            
+            // Apply the current layout
+            if (config.layout === 'horizontal') {
+                console.log('Applying horizontal layout');
+                if (containerEl) {
+                    containerEl.classList.add('horizontal');
+                    console.log('Added horizontal class to container');
+                }
+                if (songInfoEl) {
+                    songInfoEl.classList.add('horizontal');
+                    console.log('Added horizontal class to song-info');
+                }
+                if (artworkEl) {
+                    artworkEl.classList.add('horizontal');
+                    console.log('Added horizontal class to artwork');
+                }
+            } else if (config.layout === 'left-justified') {
+                console.log('Applying left-justified layout');
+                if (containerEl) {
+                    containerEl.classList.add('left-justified');
+                    console.log('Added left-justified class to container');
+                }
+                if (songInfoEl) {
+                    songInfoEl.classList.add('left-justified');
+                    console.log('Added left-justified class to song-info');
+                }
+            } else if (config.layout === 'right-justified') {
+                console.log('Applying right-justified layout');
+                if (containerEl) {
+                    containerEl.classList.add('right-justified');
+                    console.log('Added right-justified class to container');
+                }
+                if (songInfoEl) {
+                    songInfoEl.classList.add('right-justified');
+                    console.log('Added right-justified class to song-info');
+                }
+            } else {
+                console.log('Applying vertical layout (default)');
+                // No additional classes needed for vertical layout
             }
             
             // Apply artwork settings
-            if (artworkEl && config.artwork_size) {
-                artworkEl.style.maxWidth = config.artwork_size + 'px';
-                artworkEl.style.maxHeight = config.artwork_size + 'px';
-            }
-            if (artworkEl && config.show_artwork === false) {
-                artworkEl.style.display = 'none';
+            if (artworkEl) {
+                // Set artwork size
+                if (config.artwork_size) {
+                    artworkEl.style.maxWidth = config.artwork_size + 'px';
+                    artworkEl.style.maxHeight = config.artwork_size + 'px';
+                    console.log('Set artwork size to:', config.artwork_size + 'px');
+                }
+                
+                // Show/hide artwork
+                if (config.show_artwork === false) {
+                    artworkEl.classList.add('hidden');
+                } else {
+                    artworkEl.classList.remove('hidden');
+                }
             }
             
             // Apply status display settings
@@ -171,27 +300,67 @@
                     statusEl.style.display = 'block';
                 }
             }
+            
+            console.log('Configuration applied successfully');
         }
         
-        // Load initial configuration
-        fetch('/api/config')
-            .then(response => response.json())
-            .then(config => {
-                applyConfiguration(config);
-            })
-            .catch(error => {
-                console.error('Error loading configuration:', error);
-            });
+        // Load initial configuration when page loads
+        function loadConfiguration() {
+            console.log('Attempting to load configuration from /api/config');
+            fetch('/api/config')
+                .then(response => {
+                    console.log('Config response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(config => {
+                    console.log('Configuration loaded successfully:', config);
+                    applyConfiguration(config);
+                })
+                .catch(error => {
+                    console.error('Error loading configuration:', error);
+                    // Apply default configuration if loading fails
+                    console.log('Applying default configuration due to error');
+                    const defaultConfig = {
+                        font_family: 'Arial',
+                        font_size: 18,
+                        artist_font_size: 14,
+                        background_color: '#000000',
+                        text_color: '#ffffff',
+                        show_status: false,
+                        artwork_size: 60,
+                        layout: 'horizontal',
+                        show_artwork: true
+                    };
+                    applyConfiguration(defaultConfig);
+                });
+        }
         
         // Request initial song data when connected
         socket.on('connect', function() {
             console.log('Connected to server');
             socket.emit('request_song_update');
+            // Load configuration after connecting
+            setTimeout(loadConfiguration, 100); // Add small delay to ensure elements are ready
         });
         
         socket.on('disconnect', function() {
             console.log('Disconnected from server');
         });
+        
+        // Also load configuration when page is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM Content Loaded - attempting to load configuration');
+            setTimeout(loadConfiguration, 500); // Give time for socket to connect
+        });
+        
+        // Force load configuration after a delay as backup
+        setTimeout(function() {
+            console.log('Backup configuration load triggered');
+            loadConfiguration();
+        }, 2000);
     </script>
 </body>
 </html>
