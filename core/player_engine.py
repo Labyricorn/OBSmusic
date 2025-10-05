@@ -85,6 +85,9 @@ class PlayerEngine:
             RuntimeError: If mixer initialization fails
         """
         try:
+            # Initialize pygame (required for event system)
+            pygame.init()
+            
             # Initialize pygame mixer
             pygame.mixer.pre_init(frequency=frequency, size=size, channels=channels, buffer=buffer)
             pygame.mixer.init()

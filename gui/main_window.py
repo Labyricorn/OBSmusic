@@ -8,6 +8,7 @@ playback controls, and file management functionality.
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import logging
+import webbrowser
 from typing import Optional, List, Callable
 from pathlib import Path
 
@@ -249,6 +250,14 @@ class MainWindow:
             command=self._on_save_playlist_clicked
         )
         save_button.grid(row=0, column=3, padx=5)
+        
+        # Open web interface button
+        web_button = ttk.Button(
+            file_frame,
+            text="🌐 Web Display",
+            command=self._on_open_web_interface_clicked
+        )
+        web_button.grid(row=0, column=4, padx=5)
     
     # Event Handlers
     
@@ -423,6 +432,24 @@ class MainWindow:
         else:
             messagebox.showerror("Save Error", "Failed to save playlist", parent=self.root)
     
+    def _on_open_web_interface_clicked(self) -> None:
+        """Handle web interface button click - opens the HTML display page in browser."""
+        try:
+            # Default web server URL
+            web_url = "http://127.0.0.1:8080"
+            
+            # Open the web display page in the default browser
+            webbrowser.open(web_url)
+            logger.info(f"Opened web interface: {web_url}")
+            
+        except Exception as e:
+            logger.error(f"Failed to open web interface: {e}")
+            messagebox.showerror(
+                "Browser Error", 
+                f"Failed to open web interface in browser.\n\nPlease manually navigate to:\nhttp://127.0.0.1:8080",
+                parent=self.root
+            )
+    
     # Player Engine Callbacks
     
     def _on_playback_state_changed(self, state: PlaybackState) -> None:
@@ -579,12 +606,18 @@ class MainWindow:
         
         logger.info("Main window closed")
     
-    def run(self) -> None:
-        """Start the GUI main loop."""
+    def run(self, skip_player_updates=False) -> None:
+        """Start the GUI main loop.
+        
+        Args:
+            skip_player_updates: If True, don't start player update scheduling
+                                (useful when main app handles updates)
+        """
         logger.info("Starting GUI main loop")
         
-        # Set up periodic updates for player engine
-        self._schedule_player_update()
+        # Set up periodic updates for player engine (unless handled elsewhere)
+        if not skip_player_updates:
+            self._schedule_player_update()
         
         # Start main loop
         self.root.mainloop()
