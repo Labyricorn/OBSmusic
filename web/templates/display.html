@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Player Display</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #000000;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            font-size: 24px;
+            text-align: center;
+            overflow: hidden;
+        }
+        
+        .song-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            flex-direction: column;
+        }
+        
+        .song-info {
+            text-align: center;
+        }
+        
+        .song-title {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #ffffff;
+        }
+        
+        .song-artist {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: #cccccc;
+        }
+        
+        .song-artwork {
+            max-width: 200px;
+            max-height: 200px;
+            border-radius: 10px;
+            margin: 20px auto;
+            display: block;
+        }
+        
+        .status-indicator {
+            font-size: 0.8em;
+            color: #ff6b6b;
+            margin-top: 10px;
+        }
+        
+        .no-song {
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <div class="song-container">
+        <div class="song-info">
+            <div id="song-title" class="song-title">{{ song_data.title }}</div>
+            <div id="song-artist" class="song-artist">{{ song_data.artist }}</div>
+            {% if song_data.artwork_url %}
+            <img id="song-artwork" class="song-artwork" src="{{ song_data.artwork_url }}" alt="Album Artwork">
+            {% endif %}
+            <div id="status-indicator" class="status-indicator">
+                {{ 'Playing' if song_data.is_playing else 'Stopped' }}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Socket.IO connection
+        const socket = io();
+        
+        // Elements
+        const titleElement = document.getElementById('song-title');
+        const artistElement = document.getElementById('song-artist');
+        const artworkElement = document.getElementById('song-artwork');
+        const statusElement = document.getElementById('status-indicator');
+        const containerElement = document.querySelector('.song-info');
+        
+        // Handle song updates from WebSocket
+        socket.on('song_update', function(data) {
+            console.log('Received song update:', data);
+            
+            // Update title
+            titleElement.textContent = data.title || 'No song playing';
+            
+            // Update artist
+            artistElement.textContent = data.artist || 'Music Player';
+            
+            // Update artwork
+            if (data.artwork_url) {
+                if (!artworkElement) {
+                    // Create artwork element if it doesn't exist
+                    const img = document.createElement('img');
+                    img.id = 'song-artwork';
+                    img.className = 'song-artwork';
+                    img.alt = 'Album Artwork';
+                    artistElement.insertAdjacentElement('afterend', img);
+                }
+                document.getElementById('song-artwork').src = data.artwork_url;
+                document.getElementById('song-artwork').style.display = 'block';
+            } else if (artworkElement) {
+                artworkElement.style.display = 'none';
+            }
+            
+            // Update status
+            statusElement.textContent = data.is_playing ? 'Playing' : 'Stopped';
+            
+            // Update container class based on playing status
+            if (data.is_playing && data.title !== 'No song playing') {
+                containerElement.classList.remove('no-song');
+            } else {
+                containerElement.classList.add('no-song');
+            }
+        });
+        
+        // Handle configuration updates
+        socket.on('config_updated', function(config) {
+            console.log('Received config update:', config);
+            applyConfiguration(config);
+        });
+        
+        // Apply configuration to the display
+        function applyConfiguration(config) {
+            const body = document.body;
+            const titleEl = document.getElementById('song-title');
+            const artistEl = document.getElementById('song-artist');
+            const artworkEl = document.getElementById('song-artwork');
+            
+            // Apply font settings
+            if (config.font_family) {
+                body.style.fontFamily = config.font_family;
+            }
+            if (config.font_size) {
+                body.style.fontSize = config.font_size + 'px';
+            }
+            
+            // Apply colors
+            if (config.background_color) {
+                body.style.backgroundColor = config.background_color;
+            }
+            if (config.text_color) {
+                titleEl.style.color = config.text_color;
+                artistEl.style.color = config.text_color;
+            }
+            
+            // Apply artwork settings
+            if (artworkEl && config.artwork_size) {
+                artworkEl.style.maxWidth = config.artwork_size + 'px';
+                artworkEl.style.maxHeight = config.artwork_size + 'px';
+            }
+            if (artworkEl && config.show_artwork === false) {
+                artworkEl.style.display = 'none';
+            }
+        }
+        
+        // Load initial configuration
+        fetch('/api/config')
+            .then(response => response.json())
+            .then(config => {
+                applyConfiguration(config);
+            })
+            .catch(error => {
+                console.error('Error loading configuration:', error);
+            });
+        
+        // Request initial song data when connected
+        socket.on('connect', function() {
+            console.log('Connected to server');
+            socket.emit('request_song_update');
+        });
+        
+        socket.on('disconnect', function() {
+            console.log('Disconnected from server');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+# Models package for music player data structures

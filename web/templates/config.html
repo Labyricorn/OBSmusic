@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Player Configuration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        
+        input[type="color"] {
+            width: 60px;
+            height: 40px;
+            padding: 0;
+            border: none;
+            cursor: pointer;
+        }
+        
+        input[type="checkbox"] {
+            width: auto;
+            margin-right: 10px;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+        }
+        
+        .range-value {
+            display: inline-block;
+            margin-left: 10px;
+            font-weight: bold;
+            color: #666;
+        }
+        
+        .button-group {
+            text-align: center;
+            margin-top: 30px;
+        }
+        
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 0 10px;
+        }
+        
+        button:hover {
+            background-color: #0056b3;
+        }
+        
+        button.secondary {
+            background-color: #6c757d;
+        }
+        
+        button.secondary:hover {
+            background-color: #545b62;
+        }
+        
+        .preview-section {
+            margin-top: 30px;
+            padding: 20px;
+            border: 2px dashed #ddd;
+            border-radius: 10px;
+        }
+        
+        .preview-title {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #333;
+            text-align: center;
+        }
+        
+        .preview-container {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        
+        .preview-display {
+            flex: 1;
+            min-height: 200px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            background-color: #000000;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            font-size: 24px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        
+        .preview-song-title {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .preview-song-artist {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            opacity: 0.8;
+        }
+        
+        .preview-artwork {
+            width: 200px;
+            height: 200px;
+            background-color: #333;
+            border-radius: 10px;
+            margin: 20px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .preview-controls {
+            flex: 0 0 200px;
+            text-align: center;
+        }
+        
+        .preview-link {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        
+        .preview-link:hover {
+            background-color: #1e7e34;
+        }
+        
+        .layout-horizontal .preview-display {
+            flex-direction: row;
+            text-align: left;
+        }
+        
+        .layout-horizontal .preview-artwork {
+            margin: 0 20px 0 0;
+        }
+        
+        .layout-vertical .preview-display {
+            flex-direction: column;
+            text-align: center;
+        }
+        
+        .layout-overlay .preview-display {
+            position: relative;
+        }
+        
+        .layout-overlay .preview-artwork {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 100px;
+            height: 100px;
+        }
+        
+        .status-message {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            text-align: center;
+            display: none;
+        }
+        
+        .status-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Music Player Display Configuration</h1>
+        
+        <div id="status-message" class="status-message"></div>
+        
+        <form id="config-form">
+            <div class="form-group">
+                <label for="font-family">Font Family:</label>
+                <select id="font-family" name="font_family">
+                    <option value="Arial">Arial</option>
+                    <option value="Helvetica">Helvetica</option>
+                    <option value="Times New Roman">Times New Roman</option>
+                    <option value="Georgia">Georgia</option>
+                    <option value="Verdana">Verdana</option>
+                    <option value="Courier New">Courier New</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="font-size">Font Size: <span id="font-size-value" class="range-value">24px</span></label>
+                <input type="range" id="font-size" name="font_size" min="12" max="72" value="24">
+            </div>
+            
+            <div class="form-group">
+                <label for="font-weight">Font Weight:</label>
+                <select id="font-weight" name="font_weight">
+                    <option value="normal">Normal</option>
+                    <option value="bold">Bold</option>
+                    <option value="lighter">Lighter</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="background-color">Background Color:</label>
+                <input type="color" id="background-color" name="background_color" value="#000000">
+            </div>
+            
+            <div class="form-group">
+                <label for="text-color">Text Color:</label>
+                <input type="color" id="text-color" name="text_color" value="#ffffff">
+            </div>
+            
+            <div class="form-group">
+                <label for="accent-color">Accent Color:</label>
+                <input type="color" id="accent-color" name="accent_color" value="#ff6b6b">
+            </div>
+            
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="show-artwork" name="show_artwork" checked>
+                    Show Album Artwork
+                </label>
+            </div>
+            
+            <div class="form-group">
+                <label for="artwork-size">Artwork Size: <span id="artwork-size-value" class="range-value">200px</span></label>
+                <input type="range" id="artwork-size" name="artwork_size" min="100" max="400" value="200">
+            </div>
+            
+            <div class="form-group">
+                <label for="layout">Layout:</label>
+                <select id="layout" name="layout">
+                    <option value="horizontal">Horizontal</option>
+                    <option value="vertical">Vertical</option>
+                    <option value="overlay">Overlay</option>
+                </select>
+            </div>
+            
+            <div class="button-group">
+                <button type="submit">Save Configuration</button>
+                <button type="button" class="secondary" onclick="resetToDefaults()">Reset to Defaults</button>
+            </div>
+        </form>
+        
+        <div class="preview-section">
+            <div class="preview-title">Real-time Preview</div>
+            <div class="preview-container">
+                <div id="preview-display" class="preview-display layout-horizontal">
+                    <div class="preview-artwork" id="preview-artwork">Album Art</div>
+                    <div>
+                        <div class="preview-song-title" id="preview-title">Sample Song Title</div>
+                        <div class="preview-song-artist" id="preview-artist">Sample Artist</div>
+                    </div>
+                </div>
+                <div class="preview-controls">
+                    <p>Changes are applied instantly to the preview above.</p>
+                    <a href="/" target="_blank" class="preview-link">Open Full Display</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Update range value displays and preview
+        document.getElementById('font-size').addEventListener('input', function() {
+            document.getElementById('font-size-value').textContent = this.value + 'px';
+            updatePreview();
+        });
+        
+        document.getElementById('artwork-size').addEventListener('input', function() {
+            document.getElementById('artwork-size-value').textContent = this.value + 'px';
+            updatePreview();
+        });
+        
+        // Add event listeners for real-time preview updates
+        function setupPreviewListeners() {
+            const inputs = [
+                'font-family', 'font-weight', 'background-color', 
+                'text-color', 'accent-color', 'show-artwork', 'layout'
+            ];
+            
+            inputs.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.addEventListener('change', updatePreview);
+                    element.addEventListener('input', updatePreview);
+                }
+            });
+        }
+        
+        // Update the preview display with current form values
+        function updatePreview() {
+            const previewDisplay = document.getElementById('preview-display');
+            const previewTitle = document.getElementById('preview-title');
+            const previewArtist = document.getElementById('preview-artist');
+            const previewArtwork = document.getElementById('preview-artwork');
+            
+            // Get current form values
+            const fontFamily = document.getElementById('font-family').value;
+            const fontSize = document.getElementById('font-size').value;
+            const fontWeight = document.getElementById('font-weight').value;
+            const backgroundColor = document.getElementById('background-color').value;
+            const textColor = document.getElementById('text-color').value;
+            const accentColor = document.getElementById('accent-color').value;
+            const showArtwork = document.getElementById('show-artwork').checked;
+            const artworkSize = document.getElementById('artwork-size').value;
+            const layout = document.getElementById('layout').value;
+            
+            // Apply font settings
+            previewDisplay.style.fontFamily = fontFamily;
+            previewDisplay.style.fontSize = fontSize + 'px';
+            previewTitle.style.fontWeight = fontWeight;
+            
+            // Apply colors
+            previewDisplay.style.backgroundColor = backgroundColor;
+            previewTitle.style.color = textColor;
+            previewArtist.style.color = textColor;
+            
+            // Apply artwork settings
+            if (showArtwork) {
+                previewArtwork.style.display = 'flex';
+                previewArtwork.style.width = artworkSize + 'px';
+                previewArtwork.style.height = artworkSize + 'px';
+            } else {
+                previewArtwork.style.display = 'none';
+            }
+            
+            // Apply layout
+            previewDisplay.className = `preview-display layout-${layout}`;
+            
+            // Update layout-specific styles
+            if (layout === 'horizontal') {
+                previewDisplay.style.flexDirection = 'row';
+                previewDisplay.style.textAlign = 'left';
+                previewArtwork.style.position = 'static';
+                previewArtwork.style.margin = '0 20px 0 0';
+            } else if (layout === 'vertical') {
+                previewDisplay.style.flexDirection = 'column';
+                previewDisplay.style.textAlign = 'center';
+                previewArtwork.style.position = 'static';
+                previewArtwork.style.margin = '20px auto';
+            } else if (layout === 'overlay') {
+                previewDisplay.style.flexDirection = 'column';
+                previewDisplay.style.textAlign = 'center';
+                previewArtwork.style.position = 'absolute';
+                previewArtwork.style.top = '10px';
+                previewArtwork.style.right = '10px';
+                previewArtwork.style.margin = '0';
+                previewArtwork.style.width = Math.min(artworkSize, 100) + 'px';
+                previewArtwork.style.height = Math.min(artworkSize, 100) + 'px';
+            }
+        }
+        
+        // Load current configuration
+        function loadConfiguration() {
+            fetch('/api/config')
+                .then(response => response.json())
+                .then(config => {
+                    // Populate form with current configuration
+                    document.getElementById('font-family').value = config.font_family || 'Arial';
+                    document.getElementById('font-size').value = config.font_size || 24;
+                    document.getElementById('font-weight').value = config.font_weight || 'normal';
+                    document.getElementById('background-color').value = config.background_color || '#000000';
+                    document.getElementById('text-color').value = config.text_color || '#ffffff';
+                    document.getElementById('accent-color').value = config.accent_color || '#ff6b6b';
+                    document.getElementById('show-artwork').checked = config.show_artwork !== false;
+                    document.getElementById('artwork-size').value = config.artwork_size || 200;
+                    document.getElementById('layout').value = config.layout || 'horizontal';
+                    
+                    // Update range displays
+                    document.getElementById('font-size-value').textContent = (config.font_size || 24) + 'px';
+                    document.getElementById('artwork-size-value').textContent = (config.artwork_size || 200) + 'px';
+                    
+                    // Update preview with loaded configuration
+                    updatePreview();
+                })
+                .catch(error => {
+                    console.error('Error loading configuration:', error);
+                    showStatus('Error loading configuration', 'error');
+                });
+        }
+        
+        // Save configuration
+        document.getElementById('config-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const config = {};
+            
+            // Convert form data to configuration object
+            for (let [key, value] of formData.entries()) {
+                if (key === 'font_size' || key === 'artwork_size') {
+                    config[key] = parseInt(value);
+                } else if (key === 'show_artwork') {
+                    config[key] = true;
+                } else {
+                    config[key] = value;
+                }
+            }
+            
+            // Handle checkbox for show_artwork (unchecked checkboxes don't appear in FormData)
+            if (!formData.has('show_artwork')) {
+                config.show_artwork = false;
+            }
+            
+            // Send configuration to server
+            fetch('/api/config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showStatus('Configuration saved successfully!', 'success');
+                } else {
+                    showStatus('Error saving configuration: ' + (data.error || 'Unknown error'), 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error saving configuration:', error);
+                showStatus('Error saving configuration', 'error');
+            });
+        });
+        
+        // Reset to defaults
+        function resetToDefaults() {
+            if (confirm('Are you sure you want to reset all settings to defaults?')) {
+                const defaults = {
+                    font_family: 'Arial',
+                    font_size: 24,
+                    font_weight: 'normal',
+                    background_color: '#000000',
+                    text_color: '#ffffff',
+                    accent_color: '#ff6b6b',
+                    show_artwork: true,
+                    artwork_size: 200,
+                    layout: 'horizontal'
+                };
+                
+                // Update form with defaults
+                Object.keys(defaults).forEach(key => {
+                    const element = document.getElementById(key.replace('_', '-'));
+                    if (element) {
+                        if (element.type === 'checkbox') {
+                            element.checked = defaults[key];
+                        } else {
+                            element.value = defaults[key];
+                        }
+                    }
+                });
+                
+                // Update range displays
+                document.getElementById('font-size-value').textContent = defaults.font_size + 'px';
+                document.getElementById('artwork-size-value').textContent = defaults.artwork_size + 'px';
+                
+                // Update preview with defaults
+                updatePreview();
+                
+                showStatus('Form reset to defaults. Click "Save Configuration" to apply.', 'success');
+            }
+        }
+        
+        // Show status message
+        function showStatus(message, type) {
+            const statusElement = document.getElementById('status-message');
+            statusElement.textContent = message;
+            statusElement.className = 'status-message status-' + type;
+            statusElement.style.display = 'block';
+            
+            // Hide after 5 seconds
+            setTimeout(() => {
+                statusElement.style.display = 'none';
+            }, 5000);
+        }
+        
+        // Initialize preview listeners and load configuration on page load
+        setupPreviewListeners();
+        loadConfiguration();
+    </script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+# Core package for music player engine and managers
