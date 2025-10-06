@@ -131,11 +131,16 @@ python main.py --config-dir ./my_config
 
 1. Start the music player application
 2. In OBS Studio, add a **Browser Source**
-3. Set URL to: `http://localhost:8080`
+3. Set URL to: `http://localhost:8080` (main display) or `http://localhost:8081` (controls interface)
 4. Set dimensions (e.g., 800x600)
-5. Customize appearance at: `http://localhost:8080/config`
+5. Customize appearance by editing `data/config.json` (see [Configuration Settings](configuration_settings.md))
 
 The display will update in real-time as songs change!
+
+### Available Interfaces
+
+- **Main Display** (`http://localhost:8080`): Shows song information, artwork, progress bar, and frame
+- **Controls Interface** (`http://localhost:8081`): Provides playback controls with customizable background
 
 ## Testing
 
@@ -161,10 +166,25 @@ python test_suite.py
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+## Configuration
+
+The music player supports extensive customization through the `data/config.json` file. You can configure:
+
+- Background colors for both main display and controls interface
+- Text styling (fonts, sizes, colors, weights)
+- Layout options (vertical, horizontal, justified)
+- Artwork display and sizing
+- Progress bar appearance and positioning
+- Frame styling around all elements
+
+For complete configuration details, see [Configuration Settings](configuration_settings.md).
+
 ## Support
 
 If you encounter any issues or have questions:
 - Check the [Issues](https://github.com/yourusername/OBSmusic/issues) page
+- Review the [Configuration Settings](configuration_settings.md) for customization options
+- Check the [Progress Bar Configuration](PROGRESS_BAR_CONFIGURATION.md) for advanced progress bar setup
 - Review the [Testing Documentation](TESTING_DOCUMENTATION.md)
 - Check the [OBS Integration Manual](OBS_INTEGRATION_MANUAL_TESTS.md)
 

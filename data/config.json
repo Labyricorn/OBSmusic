@@ -1,0 +1,37 @@
+{
+  "background_color": "#000000",
+  "player_background_color": "black",
+  "show_artwork": true,
+  "artwork_size": 80,
+  "layout": "horizontal",
+  "show_status": false,
+  "title": {
+    "font_family": "Arial",
+    "font_size": 32,
+    "font_weight": "bold",
+    "color": "#ffffff"
+  },
+  "artist": {
+    "font_family": "Arial",
+    "font_size": 24,
+    "font_weight": "normal",
+    "color": "#cccccc"
+  },
+  "progress_bar": {
+    "show": true,
+    "position": "bottom",
+    "width": 80,
+    "height": 6,
+    "spacing": 20,
+    "background_color": "#333333",
+    "fill_color": "#ff6b6b",
+    "border_radius": 3
+  },
+  "frame": {
+    "show": true,
+    "thickness": 2,
+    "corner_radius": 10,
+    "frame_color": "#ffffff",
+    "fill_color": "transparent"
+  }
+}

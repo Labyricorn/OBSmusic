@@ -1,70 +1,57 @@
 # Music Player Configuration Settings
 
-This document provides a comprehensive overview of all configuration settings available in the `data/config.json` file for the Music Player web display.
+This document provides a comprehensive overview of all configuration settings available in the `data/config.json` file for the Music Player web display and controls interface.
 
 ## Configuration File Location
 
 The configuration file is located at: `data/config.json`
 
-## Available Configuration Settings
+## Complete Configuration Reference
 
-### Font Settings
-
-#### `font_family`
-- **Type**: String
-- **Default**: `"Arial"`
-- **Description**: Sets the font family for all text elements
-- **Example Values**: `"Arial"`, `"Helvetica"`, `"Times New Roman"`, `"Courier New"`
-
-#### `font_size`
-- **Type**: Number (pixels)
-- **Default**: `18`
-- **Description**: Sets the base font size for the song title
-- **Example Values**: `12`, `16`, `18`, `24`, `32`
-
-#### `artist_font_size`
-- **Type**: Number (pixels)
-- **Default**: `14`
-- **Description**: Sets the font size specifically for the artist text (independent of the main font size)
-- **Example Values**: `10`, `12`, `14`, `16`, `20`
-
-#### `font_weight`
-- **Type**: String
-- **Default**: `"normal"`
-- **Description**: Sets the font weight for text elements
-- **Available Values**: `"normal"`, `"bold"`, `"lighter"`, `"bolder"`
-- **Note**: Currently supported in server defaults but may need implementation in display template
-
-### Color Settings
+### Background Settings
 
 #### `background_color`
 - **Type**: String (hex color)
 - **Default**: `"#000000"`
-- **Description**: Sets the background color of the display
+- **Description**: Sets the background color of the main display interface
 - **Example Values**: `"#000000"` (black), `"#ffffff"` (white), `"#1a1a1a"` (dark gray)
 
-#### `text_color`
-- **Type**: String (hex color)
-- **Default**: `"#ffffff"`
-- **Description**: Sets the color for song title and artist text
-- **Example Values**: `"#ffffff"` (white), `"#000000"` (black), `"#ff6b6b"` (red)
+#### `player_background_color`
+- **Type**: String (CSS background value)
+- **Default**: `"linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)"`
+- **Description**: Sets the background color/gradient specifically for the HTML controls interface
+- **Example Values**: 
+  - `"#ff0000"` (solid red)
+  - `"linear-gradient(45deg, #ff6b6b, #4ecdc4)"` (gradient)
+  - `"url('path/to/image.jpg')"` (background image)
 
-#### `accent_color`
-- **Type**: String (hex color)
-- **Default**: `"#ff6b6b"`
-- **Description**: Sets the accent color for status indicators and other UI elements
-- **Example Values**: `"#ff6b6b"` (red), `"#4ecdc4"` (teal), `"#45b7d1"` (blue)
-- **Note**: Currently supported in server defaults but may need implementation in display template
+### Text Styling Settings
+
+#### `title` (Object)
+Contains styling settings for the song title:
+
+- **`font_family`** (String, default: `"Arial"`): Font family for the song title
+- **`font_size`** (Number, default: `32`): Font size in pixels for the song title
+- **`font_weight`** (String, default: `"bold"`): Font weight ("normal", "bold", "lighter", "bolder", or numeric 100-900)
+- **`color`** (String, default: `"#ffffff"`): Text color for the song title (hex color)
+
+#### `artist` (Object)
+Contains styling settings for the artist name:
+
+- **`font_family`** (String, default: `"Arial"`): Font family for the artist name
+- **`font_size`** (Number, default: `24`): Font size in pixels for the artist name
+- **`font_weight`** (String, default: `"normal"`): Font weight ("normal", "bold", "lighter", "bolder", or numeric 100-900)
+- **`color`** (String, default: `"#cccccc"`): Text color for the artist name (hex color)
 
 ### Layout Settings
 
 #### `layout`
 - **Type**: String
-- **Default**: `"vertical"`
+- **Default**: `"horizontal"`
 - **Description**: Controls the overall layout arrangement of elements
 - **Available Values**:
-  - `"vertical"`: Elements stacked vertically and centered (default)
-  - `"horizontal"`: Album artwork on the left, text on the right in a row
+  - `"vertical"`: Elements stacked vertically and centered
+  - `"horizontal"`: Album artwork on the left, text on the right in a row (default)
   - `"left-justified"`: Elements stacked vertically but aligned to the left side
   - `"right-justified"`: Elements stacked vertically but aligned to the right side
 
@@ -78,9 +65,9 @@ The configuration file is located at: `data/config.json`
 
 #### `artwork_size`
 - **Type**: Number (pixels)
-- **Default**: `200`
+- **Default**: `80`
 - **Description**: Sets the maximum width and height of the album artwork (maintains aspect ratio)
-- **Example Values**: `50`, `100`, `150`, `200`, `300`
+- **Example Values**: `50`, `80`, `100`, `150`, `200`, `300`
 
 ### Status Display Settings
 
@@ -90,34 +77,139 @@ The configuration file is located at: `data/config.json`
 - **Description**: Controls whether the playback status indicator is displayed
 - **Available Values**: `true`, `false`
 
+### Progress Bar Settings
+
+#### `progress_bar` (Object)
+Contains all progress bar configuration options:
+
+- **`show`** (Boolean, default: `true`): Whether to display the progress bar
+- **`position`** (String, default: `"bottom"`): Position of the progress bar ("top", "bottom", or "inline")
+- **`width`** (Number, default: `80`): Width as percentage of screen width (1-100)
+- **`height`** (Number, default: `6`): Height of the progress bar in pixels
+- **`spacing`** (Number, default: `20`): Distance from screen edges or margin around inline bar (pixels)
+- **`background_color`** (String, default: `"#333333"`): Background color of the progress bar (hex color)
+- **`fill_color`** (String, default: `"#ff6b6b"`): Color of the progress fill (hex color)
+- **`border_radius`** (Number, default: `3`): Border radius in pixels for rounded corners
+
+### Frame Settings
+
+#### `frame` (Object)
+Contains frame configuration options that encompass all display elements:
+
+- **`show`** (Boolean, default: `true`): Whether to display the frame around all elements
+- **`thickness`** (Number, default: `2`): Thickness of the frame border in pixels
+- **`corner_radius`** (Number, default: `10`): Corner radius of the frame in pixels
+- **`frame_color`** (String, default: `"#ffffff"`): Color of the frame border (hex color)
+- **`fill_color`** (String, default: `"transparent"`): Background fill color behind all elements (hex color or "transparent")
+
 ## Example Configuration Files
+
+### Current Default Configuration
+```json
+{
+  "background_color": "#000000",
+  "player_background_color": "linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)",
+  "show_artwork": true,
+  "artwork_size": 80,
+  "layout": "horizontal",
+  "show_status": false,
+  "title": {
+    "font_family": "Arial",
+    "font_size": 32,
+    "font_weight": "bold",
+    "color": "#ffffff"
+  },
+  "artist": {
+    "font_family": "Arial",
+    "font_size": 24,
+    "font_weight": "normal",
+    "color": "#cccccc"
+  },
+  "progress_bar": {
+    "show": true,
+    "position": "bottom",
+    "width": 80,
+    "height": 6,
+    "spacing": 20,
+    "background_color": "#333333",
+    "fill_color": "#ff6b6b",
+    "border_radius": 3
+  },
+  "frame": {
+    "show": true,
+    "thickness": 2,
+    "corner_radius": 10,
+    "frame_color": "#ffffff",
+    "fill_color": "transparent"
+  }
+}
+```
 
 ### Minimal Configuration
 ```json
 {
-  "font_family": "Arial",
-  "font_size": 18,
   "background_color": "#000000",
-  "text_color": "#ffffff",
+  "player_background_color": "#333333",
+  "show_artwork": false,
   "layout": "vertical",
-  "show_artwork": true
+  "show_status": false,
+  "title": {
+    "font_family": "Arial",
+    "font_size": 18,
+    "color": "#ffffff"
+  },
+  "artist": {
+    "font_family": "Arial", 
+    "font_size": 14,
+    "color": "#cccccc"
+  },
+  "progress_bar": {
+    "show": false
+  },
+  "frame": {
+    "show": false
+  }
 }
 ```
 
-### Complete Configuration with All Options
+### Gaming/Streaming Style Configuration
 ```json
 {
-  "font_family": "Helvetica",
-  "font_size": 24,
-  "artist_font_size": 18,
-  "font_weight": "normal",
-  "background_color": "#1a1a1a",
-  "text_color": "#ffffff",
-  "accent_color": "#4ecdc4",
-  "show_status": true,
-  "artwork_size": 150,
+  "background_color": "#000000",
+  "player_background_color": "linear-gradient(45deg, #ff0000, #000000)",
+  "show_artwork": true,
+  "artwork_size": 120,
   "layout": "horizontal",
-  "show_artwork": true
+  "show_status": true,
+  "title": {
+    "font_family": "Impact, sans-serif",
+    "font_size": 28,
+    "font_weight": "bold",
+    "color": "#00ff00"
+  },
+  "artist": {
+    "font_family": "Arial, sans-serif",
+    "font_size": 18,
+    "font_weight": "normal",
+    "color": "#66ff66"
+  },
+  "progress_bar": {
+    "show": true,
+    "position": "bottom",
+    "width": 100,
+    "height": 8,
+    "spacing": 0,
+    "background_color": "#222222",
+    "fill_color": "#00ff00",
+    "border_radius": 0
+  },
+  "frame": {
+    "show": true,
+    "thickness": 3,
+    "corner_radius": 0,
+    "frame_color": "#00ff00",
+    "fill_color": "#001100"
+  }
 }
 ```
 
@@ -187,14 +279,27 @@ Configuration changes can be applied in two ways:
 
 Changes are automatically broadcast to all connected browser sources via WebSocket when updated through the API.
 
+## Interface-Specific Settings
+
+### Main Display Interface
+- Uses `background_color` for the main display background
+- All `title`, `artist`, `progress_bar`, and `frame` settings apply
+- Artwork and layout settings control the main display appearance
+
+### HTML Controls Interface  
+- Uses `player_background_color` specifically for the controls interface background
+- Independent styling from the main display
+- Accessible via separate web server port (typically 8081)
+
 ## Notes
 
-- All color values should be in hexadecimal format (e.g., `#ffffff`)
+- All color values should be in hexadecimal format (e.g., `#ffffff`) or valid CSS values
 - Font sizes are specified in pixels
 - Boolean values should be `true` or `false` (lowercase, no quotes)
 - The configuration file must be valid JSON format
 - If a setting is omitted, the default value will be used
-- Some settings from the server defaults (like `font_weight` and `accent_color`) may require additional implementation in the display template
+- The `player_background_color` supports CSS gradients and background images
+- Nested objects (title, artist, progress_bar, frame) can be partially configured - missing properties will use defaults
 
 ## Troubleshooting
 

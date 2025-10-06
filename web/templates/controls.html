@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Player Controls</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 5px;
+            background: {{ config.player_background_color if config.player_background_color else 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)' }};
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        .controls-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            text-align: center;
+            min-width: 100px;
+            max-width: 800px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .now-playing {
+            margin-bottom: 12px;
+        }
+
+        .song-title {
+            font-size: clamp(12px, 3vw, 18px);
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: #ffffff;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .song-artist {
+            font-size: clamp(10px, 2.5vw, 14px);
+            color: #e0e0e0;
+            margin-bottom: 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .status {
+            font-size: clamp(8px, 2vw, 12px);
+            color: #ff6b6b;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: clamp(4px, 2vw, 12px);
+            margin: 12px 0 8px 0;
+            flex-wrap: wrap;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 50%;
+            width: clamp(28px, 8vw, 48px);
+            height: clamp(28px, 8vw, 48px);
+            color: #ffffff;
+            font-size: clamp(12px, 4vw, 20px);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            flex-shrink: 0;
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .control-btn:active {
+            transform: translateY(0);
+        }
+
+        .control-btn.play {
+            width: clamp(36px, 10vw, 60px);
+            height: clamp(36px, 10vw, 60px);
+            font-size: clamp(16px, 5vw, 24px);
+            background: rgba(255, 107, 107, 0.8);
+        }
+
+        .control-btn.play:hover {
+            background: rgba(255, 107, 107, 1);
+        }
+
+        .control-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .control-btn:disabled:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: none;
+            box-shadow: none;
+        }
+
+        .connection-status {
+            margin-top: 8px;
+            padding: 6px 8px;
+            border-radius: 6px;
+            font-size: clamp(8px, 2vw, 11px);
+        }
+
+        .connection-status.connected {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4CAF50;
+            border: 1px solid rgba(76, 175, 80, 0.3);
+        }
+
+        .connection-status.disconnected {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+            border: 1px solid rgba(244, 67, 54, 0.3);
+        }
+
+        .footer {
+            margin-top: 8px;
+            font-size: clamp(8px, 1.5vw, 10px);
+            color: #b0b0b0;
+            line-height: 1.2;
+        }
+
+        /* Ultra-compact mode for very small widths */
+        @media (max-width: 150px) {
+            .controls-container {
+                padding: 8px;
+                border-radius: 8px;
+            }
+            
+            .now-playing {
+                margin-bottom: 6px;
+            }
+            
+            .controls {
+                gap: 2px;
+                margin: 6px 0 4px 0;
+            }
+            
+            .song-title, .song-artist {
+                display: none;
+            }
+            
+            .status {
+                font-size: 8px;
+                margin-bottom: 4px;
+            }
+            
+            .connection-status {
+                display: none;
+            }
+            
+            .footer {
+                display: none;
+            }
+        }
+
+        /* Compact mode for small widths */
+        @media (max-width: 250px) {
+            .song-artist {
+                display: none;
+            }
+            
+            .footer small {
+                display: none;
+            }
+        }
+
+        /* Medium size adjustments */
+        @media (min-width: 400px) and (max-width: 600px) {
+            .controls-container {
+                padding: 20px;
+            }
+        }
+
+        /* Large size adjustments */
+        @media (min-width: 600px) {
+            .controls-container {
+                padding: 25px;
+                max-width: 600px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="controls-container">
+        <div class="now-playing">
+            <div id="song-title" class="song-title">No song playing</div>
+            <div id="song-artist" class="song-artist">Music Player</div>
+            <div id="status" class="status">Stopped</div>
+        </div>
+
+        <div class="controls">
+            <button id="prev-btn" class="control-btn" title="Previous">⏮</button>
+            <button id="stop-btn" class="control-btn" title="Stop">⏹</button>
+            <button id="pause-btn" class="control-btn" title="Pause">⏸</button>
+            <button id="play-btn" class="control-btn play" title="Play">▶</button>
+            <button id="next-btn" class="control-btn" title="Next">⏭</button>
+        </div>
+
+        <div id="connection-status" class="connection-status disconnected">
+            Connecting to music player...
+        </div>
+
+        <div class="footer">
+            Music Player Web Controls<br>
+            <small>Audio plays through the main display page</small>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Socket.IO connection to the main server (port 8080)
+        const socket = io('http://localhost:8080');
+
+        // Elements
+        const titleElement = document.getElementById('song-title');
+        const artistElement = document.getElementById('song-artist');
+        const statusElement = document.getElementById('status');
+        const connectionStatus = document.getElementById('connection-status');
+        
+        // Control buttons
+        const playBtn = document.getElementById('play-btn');
+        const pauseBtn = document.getElementById('pause-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+
+        // Connection status
+        let isConnected = false;
+
+        // Socket event handlers
+        socket.on('connect', function() {
+            console.log('Connected to music player controls');
+            isConnected = true;
+            updateConnectionStatus();
+            // Request current song data
+            socket.emit('request_song_update');
+        });
+
+        socket.on('disconnect', function() {
+            console.log('Disconnected from music player controls');
+            isConnected = false;
+            updateConnectionStatus();
+        });
+
+        socket.on('song_update', function(data) {
+            console.log('Received song update in controls:', data);
+            updateDisplay(data);
+        });
+
+        // Update display with song data (controls page only shows info, no audio)
+        function updateDisplay(data) {
+            titleElement.textContent = data.title || 'No song playing';
+            artistElement.textContent = data.artist || 'Music Player';
+            statusElement.textContent = data.status || 'Stopped';
+            
+            // Update button states based on status
+            updateButtonStates(data.status, data.is_playing);
+        }
+
+        // Update button states
+        function updateButtonStates(status, isPlaying) {
+            // Reset all buttons to enabled first
+            playBtn.disabled = false;
+            pauseBtn.disabled = false;
+            stopBtn.disabled = false;
+            prevBtn.disabled = false;
+            nextBtn.disabled = false;
+
+            // Disable appropriate buttons based on current status
+            if (status === 'Playing') {
+                playBtn.disabled = true;  // Can't play when already playing
+            } else if (status === 'Paused') {
+                pauseBtn.disabled = true;  // Can't pause when already paused
+            } else { // Stopped
+                pauseBtn.disabled = true;  // Can't pause when stopped
+                stopBtn.disabled = true;   // Can't stop when already stopped
+            }
+        }
+
+        // Update connection status display
+        function updateConnectionStatus() {
+            if (isConnected) {
+                connectionStatus.textContent = 'Connected to music player';
+                connectionStatus.className = 'connection-status connected';
+            } else {
+                connectionStatus.textContent = 'Disconnected from music player';
+                connectionStatus.className = 'connection-status disconnected';
+            }
+        }
+
+        // Control button event handlers - these only send commands, no audio handling
+        playBtn.addEventListener('click', function() {
+            console.log('Controls: Play button clicked');
+            socket.emit('control_action', { action: 'play' });
+            // Provide immediate visual feedback
+            playBtn.disabled = true;
+            pauseBtn.disabled = false;
+            statusElement.textContent = 'Starting...';
+        });
+
+        pauseBtn.addEventListener('click', function() {
+            console.log('Controls: Pause button clicked');
+            socket.emit('control_action', { action: 'pause' });
+            // Provide immediate visual feedback
+            pauseBtn.disabled = true;
+            playBtn.disabled = false;
+            statusElement.textContent = 'Pausing...';
+        });
+
+        stopBtn.addEventListener('click', function() {
+            console.log('Controls: Stop button clicked');
+            socket.emit('control_action', { action: 'stop' });
+            // Provide immediate visual feedback
+            stopBtn.disabled = true;
+            pauseBtn.disabled = true;
+            playBtn.disabled = false;
+            statusElement.textContent = 'Stopping...';
+        });
+
+        prevBtn.addEventListener('click', function() {
+            console.log('Controls: Previous button clicked');
+            socket.emit('control_action', { action: 'previous' });
+            // Provide immediate visual feedback
+            statusElement.textContent = 'Previous song...';
+        });
+
+        nextBtn.addEventListener('click', function() {
+            console.log('Controls: Next button clicked');
+            socket.emit('control_action', { action: 'next' });
+            // Provide immediate visual feedback
+            statusElement.textContent = 'Next song...';
+        });
+
+        // Initial connection status
+        updateConnectionStatus();
+
+        // Note: This controls page does NOT handle audio playback
+        // Audio is handled by the main display page at the primary web server
+        console.log('Music Player Controls initialized - audio plays through main display page');
+    </script>
+</body>
+</html>
