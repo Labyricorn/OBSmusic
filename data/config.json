@@ -1,6 +1,7 @@
 {
   "background_color": "#000000",
-  "player_background_color": "black",
+  "player_background_color": "#000000",
+  "player_frame_fill_color": "#808080",
   "show_artwork": true,
   "artwork_size": 80,
   "layout": "horizontal",

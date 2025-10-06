@@ -62,6 +62,7 @@ class ControlsServer:
         return {
             'background_color': '#000000',
             'player_background_color': 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
+            'player_frame_fill_color': 'rgba(255, 255, 255, 0.1)',
             'title': {'color': '#ffffff'},
             'artist': {'color': '#cccccc'}
         }

@@ -25,6 +25,16 @@ The configuration file is located at: `data/config.json`
   - `"linear-gradient(45deg, #ff6b6b, #4ecdc4)"` (gradient)
   - `"url('path/to/image.jpg')"` (background image)
 
+#### `player_frame_fill_color`
+- **Type**: String (CSS color value)
+- **Default**: `"rgba(255, 255, 255, 0.1)"`
+- **Description**: Sets the background fill color for the controls container frame in the HTML controls interface
+- **Example Values**: 
+  - `"rgba(255, 255, 255, 0.1)"` (semi-transparent white)
+  - `"rgba(0, 0, 0, 0.5)"` (semi-transparent black)
+  - `"#333333"` (solid dark gray)
+  - `"transparent"` (no background)
+
 ### Text Styling Settings
 
 #### `title` (Object)
@@ -109,6 +119,7 @@ Contains frame configuration options that encompass all display elements:
 {
   "background_color": "#000000",
   "player_background_color": "linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)",
+  "player_frame_fill_color": "rgba(255, 255, 255, 0.1)",
   "show_artwork": true,
   "artwork_size": 80,
   "layout": "horizontal",
@@ -150,6 +161,7 @@ Contains frame configuration options that encompass all display elements:
 {
   "background_color": "#000000",
   "player_background_color": "#333333",
+  "player_frame_fill_color": "rgba(0, 0, 0, 0.8)",
   "show_artwork": false,
   "layout": "vertical",
   "show_status": false,
@@ -177,6 +189,7 @@ Contains frame configuration options that encompass all display elements:
 {
   "background_color": "#000000",
   "player_background_color": "linear-gradient(45deg, #ff0000, #000000)",
+  "player_frame_fill_color": "rgba(0, 255, 0, 0.2)",
   "show_artwork": true,
   "artwork_size": 120,
   "layout": "horizontal",
@@ -288,6 +301,7 @@ Changes are automatically broadcast to all connected browser sources via WebSock
 
 ### HTML Controls Interface  
 - Uses `player_background_color` specifically for the controls interface background
+- Uses `player_frame_fill_color` for the controls container background
 - Independent styling from the main display
 - Accessible via separate web server port (typically 8081)
 

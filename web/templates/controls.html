@@ -9,7 +9,7 @@
         body {
             margin: 0;
             padding: 5px;
-            background: {{ config.player_background_color if config.player_background_color else 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)' }};
+            background: {{ config.get('player_background_color', 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)') }};
             color: #ffffff;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             height: 100vh;
@@ -21,7 +21,7 @@
         }
 
         .controls-container {
-            background: rgba(255, 255, 255, 0.1);
+            background: {{ config.get('player_frame_fill_color', 'rgba(255, 255, 255, 0.1)') }};
             backdrop-filter: blur(10px);
             border-radius: 12px;
             padding: 15px;
