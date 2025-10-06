@@ -42,13 +42,13 @@ class MainWindow:
         self.stop_button = None
         self.next_button = None
         self.previous_button = None
-        self.volume_scale = None
         self.loop_var = None
         self.loop_checkbox = None
         
         # State tracking
         self._updating_gui = False
         self._drag_start_index = None
+        self._selected_index = None  # Track GUI selection separately from current song
         
         # Set up player callbacks
         self._setup_player_callbacks()
@@ -135,7 +135,6 @@ class MainWindow:
         self.playlist_listbox.configure(yscrollcommand=scrollbar.set)
         
         # Bind events for playlist interaction
-        self.playlist_listbox.bind("<Double-Button-1>", self._on_playlist_double_click)
         self.playlist_listbox.bind("<Button-1>", self._on_playlist_click)
         self.playlist_listbox.bind("<B1-Motion>", self._on_playlist_drag)
         self.playlist_listbox.bind("<ButtonRelease-1>", self._on_playlist_drop)
@@ -188,20 +187,6 @@ class MainWindow:
         )
         self.next_button.grid(row=0, column=4, padx=2)
         
-        # Volume control
-        ttk.Label(controls_frame, text="Volume:").grid(row=0, column=5, padx=(20, 5), sticky="e")
-        
-        self.volume_scale = ttk.Scale(
-            controls_frame,
-            from_=0.0,
-            to=1.0,
-            orient="horizontal",
-            length=150,
-            command=self._on_volume_changed
-        )
-        self.volume_scale.set(self.player_engine.get_volume())
-        self.volume_scale.grid(row=0, column=6, padx=5, sticky="ew")
-        
         # Loop checkbox
         self.loop_var = tk.BooleanVar()
         self.loop_var.set(self.playlist_manager.is_loop_enabled())
@@ -211,7 +196,7 @@ class MainWindow:
             variable=self.loop_var,
             command=self._on_loop_toggled
         )
-        self.loop_checkbox.grid(row=0, column=7, padx=(20, 0))
+        self.loop_checkbox.grid(row=0, column=5, padx=(20, 0))
     
     def _create_file_management(self) -> None:
         """Create file management buttons."""
@@ -258,27 +243,42 @@ class MainWindow:
             command=self._on_open_web_interface_clicked
         )
         web_button.grid(row=0, column=4, padx=5)
+        
+        # Open web controls button
+        controls_button = ttk.Button(
+            file_frame,
+            text="🎮 Web Controls",
+            command=self._on_open_web_controls_clicked
+        )
+        controls_button.grid(row=0, column=5, padx=5)
     
     # Event Handlers
     
-    def _on_playlist_double_click(self, event) -> None:
-        """Handle double-click on playlist item."""
-        selection = self.playlist_listbox.curselection()
-        if selection:
-            index = selection[0]
-            song = self.playlist_manager.set_current_song(index)
-            if song:
-                self.player_engine.play_song(song)
-                logger.debug(f"Double-clicked to play: {song.get_display_name()}")
-    
+
     def _on_playlist_click(self, event) -> None:
-        """Handle single click on playlist item (start of drag)."""
+        """Handle single click on playlist item (selection only, no playback change)."""
         selection = self.playlist_listbox.curselection()
         if selection:
-            self._drag_start_index = selection[0]
+            self._selected_index = selection[0]
+            # Store initial click position for drag detection
+            self._click_x = event.x
+            self._click_y = event.y
+            self._potential_drag_index = selection[0]
+            logger.debug(f"Selected song at index {self._selected_index} (no playback change)")
     
     def _on_playlist_drag(self, event) -> None:
-        """Handle dragging of playlist items."""
+        """Handle dragging of playlist items - only start drag after movement threshold."""
+        if hasattr(self, '_potential_drag_index') and self._potential_drag_index is not None:
+            # Check if mouse has moved enough to constitute a drag (threshold: 5 pixels)
+            if hasattr(self, '_click_x') and hasattr(self, '_click_y'):
+                dx = abs(event.x - self._click_x)
+                dy = abs(event.y - self._click_y)
+                if dx > 5 or dy > 5:
+                    # Start actual drag operation
+                    self._drag_start_index = self._potential_drag_index
+                    self._potential_drag_index = None
+                    logger.debug(f"Started drag operation from index {self._drag_start_index}")
+        
         if self._drag_start_index is not None:
             # Visual feedback could be added here
             pass
@@ -294,11 +294,14 @@ class MainWindow:
                 success = self.playlist_manager.reorder_songs(self._drag_start_index, drop_index)
                 if success:
                     self._update_playlist_display()
-                    # Select the moved item
+                    # Update selected index to follow the moved item
+                    self._selected_index = drop_index
                     self.playlist_listbox.selection_set(drop_index)
                     logger.debug(f"Reordered song from {self._drag_start_index} to {drop_index}")
         
+        # Clean up drag state
         self._drag_start_index = None
+        self._potential_drag_index = None
     
     def _on_play_clicked(self) -> None:
         """Handle play button click."""
@@ -306,15 +309,28 @@ class MainWindow:
             # Resume playback
             self.player_engine.play()
         else:
-            # Start playing current song or first song in playlist
-            current_song = self.playlist_manager.get_current_song()
-            if current_song:
-                self.player_engine.play_song(current_song)
-            elif not self.playlist_manager.is_empty():
-                # Play first song
-                first_song = self.playlist_manager.set_current_song(0)
-                if first_song:
-                    self.player_engine.play_song(first_song)
+            # Determine which song to play
+            song_to_play = None
+            
+            # If user has selected a song, play that song
+            if self._selected_index is not None and 0 <= self._selected_index < self.playlist_manager.get_song_count():
+                song_to_play = self.playlist_manager.set_current_song(self._selected_index)
+                logger.debug(f"Playing selected song at index {self._selected_index}")
+            else:
+                # Fall back to current song or first song
+                song_to_play = self.playlist_manager.get_current_song()
+                if not song_to_play and not self.playlist_manager.is_empty():
+                    # Play first song
+                    song_to_play = self.playlist_manager.set_current_song(0)
+                    logger.debug("Playing first song (no selection)")
+            
+            # Start playing the determined song
+            if song_to_play:
+                self.player_engine.play_song(song_to_play)
+                logger.debug(f"Started playing: {song_to_play.get_display_name()}")
+        
+        # Trigger immediate web update after play button is pressed
+        self._trigger_web_update()
     
     def _on_pause_clicked(self) -> None:
         """Handle pause button click."""
@@ -332,13 +348,7 @@ class MainWindow:
         """Handle previous button click."""
         self.player_engine.previous_song()
     
-    def _on_volume_changed(self, value) -> None:
-        """Handle volume slider change."""
-        try:
-            volume = float(value)
-            self.player_engine.set_volume(volume)
-        except ValueError:
-            logger.warning(f"Invalid volume value: {value}")
+
     
     def _on_loop_toggled(self) -> None:
         """Handle loop checkbox toggle."""
@@ -382,12 +392,11 @@ class MainWindow:
     
     def _on_remove_song_clicked(self) -> None:
         """Handle remove song button click."""
-        selection = self.playlist_listbox.curselection()
-        if not selection:
+        if self._selected_index is None:
             messagebox.showwarning("No Selection", "Please select a song to remove", parent=self.root)
             return
         
-        index = selection[0]
+        index = self._selected_index
         song = self.playlist_manager.get_songs()[index]
         
         # Confirm removal
@@ -400,6 +409,14 @@ class MainWindow:
         if result:
             success = self.playlist_manager.remove_song(index)
             if success:
+                # Update selected index after removal
+                if self._selected_index == index:
+                    # If we removed the selected song, clear selection
+                    self._selected_index = None
+                elif self._selected_index is not None and self._selected_index > index:
+                    # If selected song was after the removed song, adjust index
+                    self._selected_index -= 1
+                
                 self._update_playlist_display()
                 logger.debug(f"Removed song: {song.get_display_name()}")
             else:
@@ -420,6 +437,7 @@ class MainWindow:
         
         if result:
             self.playlist_manager.clear_playlist()
+            self._selected_index = None  # Clear selection when playlist is cleared
             self._update_playlist_display()
             self._update_current_song_display()
             logger.debug("Cleared playlist")
@@ -447,6 +465,24 @@ class MainWindow:
             messagebox.showerror(
                 "Browser Error", 
                 f"Failed to open web interface in browser.\n\nPlease manually navigate to:\nhttp://127.0.0.1:8080",
+                parent=self.root
+            )
+    
+    def _on_open_web_controls_clicked(self) -> None:
+        """Handle web controls button click - opens the controls page in browser."""
+        try:
+            # Default controls server URL
+            controls_url = "http://127.0.0.1:8081"
+            
+            # Open the web controls page in the default browser
+            webbrowser.open(controls_url)
+            logger.info(f"Opened web controls: {controls_url}")
+            
+        except Exception as e:
+            logger.error(f"Failed to open web controls: {e}")
+            messagebox.showerror(
+                "Browser Error", 
+                f"Failed to open web controls in browser.\n\nPlease manually navigate to:\nhttp://127.0.0.1:8081",
                 parent=self.root
             )
     
@@ -507,10 +543,14 @@ class MainWindow:
         # Clear current items
         self.playlist_listbox.delete(0, tk.END)
         
-        # Add songs to listbox
+        # Add songs to listbox with visual indicators
         songs = self.playlist_manager.get_songs()
+        current_index = self.playlist_manager.get_playlist().current_index
+        
         for i, song in enumerate(songs):
-            display_text = f"{i+1:2d}. {song.get_display_name()}"
+            # Add indicator for currently playing song
+            indicator = "♪ " if i == current_index else "  "
+            display_text = f"{indicator}{i+1:2d}. {song.get_display_name()}"
             self.playlist_listbox.insert(tk.END, display_text)
         
         # Update selection
@@ -553,15 +593,30 @@ class MainWindow:
         self.previous_button.config(state="normal" if has_songs else "disabled")
     
     def _update_playlist_selection(self) -> None:
-        """Update playlist selection to highlight current song."""
+        """Update playlist selection to highlight selected song (not current playing song)."""
         # Clear current selection
         self.playlist_listbox.selection_clear(0, tk.END)
         
-        # Highlight current song
-        current_index = self.playlist_manager.get_playlist().current_index
-        if 0 <= current_index < self.playlist_listbox.size():
-            self.playlist_listbox.selection_set(current_index)
-            self.playlist_listbox.see(current_index)  # Scroll to make it visible
+        # Highlight selected song if we have one
+        if self._selected_index is not None and 0 <= self._selected_index < self.playlist_listbox.size():
+            self.playlist_listbox.selection_set(self._selected_index)
+            self.playlist_listbox.see(self._selected_index)  # Scroll to make it visible
+
+    def _trigger_web_update(self) -> None:
+        """Trigger an immediate web server update with current song and state."""
+        # This method will be called by the main application's enhanced callbacks
+        # The actual web update logic is handled in main.py through the enhanced callbacks
+        # We just need to ensure the callbacks are triggered
+        current_song = self.player_engine.get_current_song()
+        current_state = self.player_engine.get_state()
+        
+        # Force trigger the callbacks that update the web server
+        if hasattr(self, '_on_song_changed') and current_song:
+            self._on_song_changed(current_song)
+        if hasattr(self, '_on_playback_state_changed'):
+            self._on_playback_state_changed(current_state)
+        
+        logger.debug("Triggered web update for play button press")
 
     def _cleanup_invalid_songs(self) -> None:
         """Clean up invalid songs from the playlist with user feedback."""

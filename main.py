@@ -21,6 +21,7 @@ from core.playlist_manager import PlaylistManager
 from core.player_engine import PlayerEngine
 from gui.main_window import MainWindow
 from web.server import WebServer
+from web.controls_server import ControlsServer
 
 # Configure logging
 logging.basicConfig(
@@ -33,7 +34,7 @@ logger = logging.getLogger(__name__)
 class MusicPlayerApp:
     """Main application class that coordinates all components."""
     
-    def __init__(self, config_dir=None, web_port=8080, enable_gui=True, enable_web=True):
+    def __init__(self, config_dir=None, web_port=8080, enable_gui=True, enable_web=True, debug_mode=False):
         """Initialize the music player application.
         
         Args:
@@ -41,17 +42,20 @@ class MusicPlayerApp:
             web_port: Port for the web server
             enable_gui: Whether to enable GUI components
             enable_web: Whether to enable web server
+            debug_mode: Whether debug mode is enabled
         """
         self.config_dir = Path(config_dir) if config_dir else project_root / "data"
         self.config_dir.mkdir(exist_ok=True)
         self.web_port = web_port
         self.enable_gui = enable_gui
         self.enable_web = enable_web
+        self.debug_mode = debug_mode
         
         # Component references (will be initialized later)
         self.playlist_manager = None
         self.player_engine = None
         self.web_server = None
+        self.controls_server = None
         self.gui = None
         
         # Threading
@@ -83,11 +87,21 @@ class MusicPlayerApp:
             
             # Initialize web server (if enabled)
             if self.enable_web:
-                self.web_server = WebServer(host='127.0.0.1', port=self.web_port)
+                self.web_server = WebServer(host='127.0.0.1', port=self.web_port, debug_mode=self.debug_mode)
                 logger.info("Web server initialized")
+                
+                # Initialize controls server on next available port (still needed for serving the controls page)
+                self.controls_server = ControlsServer(host='127.0.0.1', port=self.web_port + 1, debug_mode=self.debug_mode)
+                logger.info("Controls server initialized")
                 
                 # Set up player engine callbacks for web updates
                 self._setup_player_web_integration()
+                
+                # Set up web server callback for song ended events
+                self.web_server.set_on_song_ended_callback(self._on_web_song_ended)
+                
+                # Set up controls integration on the main web server
+                self._setup_controls_integration()
                 
                 # Initialize web display with current song data
                 self._initialize_web_display()
@@ -163,6 +177,14 @@ class MusicPlayerApp:
                     # No artwork path, use placeholder
                     artwork_url = "/static/artwork/placeholder.jpg"
                 
+                # Generate audio URL for web playback
+                audio_url = None
+                if song.file_path and os.path.exists(song.file_path):
+                    import base64
+                    # Encode the file path as base64 for the URL
+                    encoded_path = base64.b64encode(song.file_path.encode()).decode()
+                    audio_url = f"/api/audio/{encoded_path}"
+                
                 # Update web display
                 status = self._get_status_string(self.player_engine.get_state())
                 self.web_server.update_song_data(
@@ -170,7 +192,8 @@ class MusicPlayerApp:
                     artist=song.artist,
                     artwork_url=artwork_url,
                     is_playing=self.player_engine.is_playing(),
-                    status=status
+                    status=status,
+                    audio_url=audio_url
                 )
                 logger.debug(f"Updated web display: {song.get_display_name()}")
                 
@@ -184,13 +207,21 @@ class MusicPlayerApp:
                 status = self._get_status_string(state)
                 current_song = self.player_engine.get_current_song()
                 if current_song:
+                    # Generate audio URL for current song
+                    audio_url = None
+                    if current_song.file_path and os.path.exists(current_song.file_path):
+                        import base64
+                        encoded_path = base64.b64encode(current_song.file_path.encode()).decode()
+                        audio_url = f"/api/audio/{encoded_path}"
+                    
                     # Update playing state
                     self.web_server.update_song_data(
                         title=current_song.title,
                         artist=current_song.artist,
                         artwork_url=self.web_server.current_song_data.get('artwork_url'),
                         is_playing=self.player_engine.is_playing(),
-                        status=status
+                        status=status,
+                        audio_url=audio_url
                     )
                 else:
                     # No song playing
@@ -199,7 +230,8 @@ class MusicPlayerApp:
                         artist="Music Player",
                         artwork_url="/static/artwork/placeholder.jpg",
                         is_playing=False,
-                        status=status
+                        status=status,
+                        audio_url=None
                     )
                 logger.debug(f"Updated web display state: {state.value}")
                 
@@ -219,6 +251,7 @@ class MusicPlayerApp:
             original_gui_song_callback(song)
             # Also update web display
             self._update_web_display_for_song(song)
+
         
         def enhanced_state_callback(state):
             """Enhanced state callback that updates both GUI and web."""
@@ -226,6 +259,7 @@ class MusicPlayerApp:
             original_gui_state_callback(state)
             # Also update web display
             self._update_web_display_for_state(state)
+
         
         # Replace the GUI callbacks with enhanced versions
         self.gui._on_song_changed = enhanced_song_callback
@@ -261,13 +295,21 @@ class MusicPlayerApp:
                         elif os.path.exists(current_song.artwork_path):
                             artwork_url = f"/static/artwork/{artwork_filename}"
                     
+                    # Generate audio URL for current song
+                    audio_url = None
+                    if current_song.file_path and os.path.exists(current_song.file_path):
+                        import base64
+                        encoded_path = base64.b64encode(current_song.file_path.encode()).decode()
+                        audio_url = f"/api/audio/{encoded_path}"
+                    
                     status = self._get_status_string(self.player_engine.get_state())
                     self.web_server.update_song_data(
                         title=current_song.title,
                         artist=current_song.artist,
                         artwork_url=artwork_url,
                         is_playing=self.player_engine.is_playing(),
-                        status=status
+                        status=status,
+                        audio_url=audio_url
                     )
             return result
         
@@ -298,13 +340,21 @@ class MusicPlayerApp:
                         elif os.path.exists(result.artwork_path):
                             artwork_url = f"/static/artwork/{artwork_filename}"
                     
+                    # Generate audio URL for the selected song
+                    audio_url = None
+                    if result.file_path and os.path.exists(result.file_path):
+                        import base64
+                        encoded_path = base64.b64encode(result.file_path.encode()).decode()
+                        audio_url = f"/api/audio/{encoded_path}"
+                    
                     status = self._get_status_string(self.player_engine.get_state())
                     self.web_server.update_song_data(
                         title=result.title,
                         artist=result.artist,
                         artwork_url=artwork_url,
                         is_playing=self.player_engine.is_playing(),
-                        status=status
+                        status=status,
+                        audio_url=audio_url
                     )
                     logger.info(f"Updated web display from playlist selection: {result.get_display_name()}")
             return result
@@ -339,6 +389,13 @@ class MusicPlayerApp:
                         elif os.path.exists(current_song.artwork_path):
                             artwork_url = f"/static/artwork/{artwork_filename}"
                     
+                    # Generate audio URL for current song
+                    audio_url = None
+                    if current_song.file_path and os.path.exists(current_song.file_path):
+                        import base64
+                        encoded_path = base64.b64encode(current_song.file_path.encode()).decode()
+                        audio_url = f"/api/audio/{encoded_path}"
+                    
                     # Update web display with current song
                     status = self._get_status_string(self.player_engine.get_state())
                     self.web_server.update_song_data(
@@ -346,7 +403,8 @@ class MusicPlayerApp:
                         artist=current_song.artist,
                         artwork_url=artwork_url,
                         is_playing=False,  # Not playing initially
-                        status=status
+                        status=status,
+                        audio_url=audio_url
                     )
                     logger.info(f"Initialized web display with current song: {current_song.get_display_name()}")
                 else:
@@ -357,7 +415,8 @@ class MusicPlayerApp:
                         artist="Music Player",
                         artwork_url="/static/artwork/placeholder.jpg",
                         is_playing=False,
-                        status=status
+                        status=status,
+                        audio_url=None
                     )
                     logger.info("Initialized web display with default state (no current song)")
         except Exception as e:
@@ -377,6 +436,99 @@ class MusicPlayerApp:
             return "Loading"
         else:
             return "Stopped"
+    
+    def _on_web_song_ended(self):
+        """Handle when a song ends in the web audio player."""
+        try:
+            logger.info("Web audio player reported song ended")
+            if self.player_engine:
+                # Trigger playlist advancement without changing state first
+                from core.player_engine import PlaybackState
+                
+                # Debug: Check auto-advance setting
+                auto_advance_enabled = self.player_engine.is_auto_advance_enabled()
+                logger.info(f"Auto-advance enabled: {auto_advance_enabled}")
+                
+                with self.player_engine._lock:
+                    if self.player_engine.get_state() == PlaybackState.PLAYING:
+                        # Set position to end of song
+                        self.player_engine._position = self.player_engine._duration
+                        
+                        logger.info("Calling _handle_song_finished to advance to next song")
+                        # Handle song finished (includes playlist advancement)
+                        # This will advance to next song if auto-advance is enabled
+                        self.player_engine._handle_song_finished()
+                        
+                        logger.info("Player engine synchronized with web audio song end")
+                    else:
+                        logger.warning(f"Song ended but player state is {self.player_engine.get_state()}, not PLAYING")
+        except Exception as e:
+            logger.error(f"Error handling web song ended: {e}")
+    
+    def _setup_controls_integration(self):
+        """Set up integration between controls interface and player engine."""
+        if self.web_server and self.player_engine:
+            # Set up control callbacks on the main web server (since controls connect to main server)
+            self.web_server.set_control_callbacks(
+                play_callback=self._on_controls_play,
+                pause_callback=self._on_controls_pause,
+                stop_callback=self._on_controls_stop,
+                next_callback=self._on_controls_next,
+                previous_callback=self._on_controls_previous
+            )
+            logger.info("Controls integration callbacks set up on main web server")
+    
+    def _on_controls_play(self):
+        """Handle play command from controls interface."""
+        try:
+            if self.player_engine.is_paused():
+                # Resume playback
+                self.player_engine.play()
+            else:
+                # Start playing current song or first song
+                current_song = self.playlist_manager.get_current_song()
+                if current_song:
+                    self.player_engine.play_song(current_song)
+                elif not self.playlist_manager.is_empty():
+                    # Play first song
+                    first_song = self.playlist_manager.set_current_song(0)
+                    if first_song:
+                        self.player_engine.play_song(first_song)
+            logger.debug("Controls play command executed")
+        except Exception as e:
+            logger.error(f"Error executing controls play command: {e}")
+    
+    def _on_controls_pause(self):
+        """Handle pause command from controls interface."""
+        try:
+            self.player_engine.pause()
+            logger.debug("Controls pause command executed")
+        except Exception as e:
+            logger.error(f"Error executing controls pause command: {e}")
+    
+    def _on_controls_stop(self):
+        """Handle stop command from controls interface."""
+        try:
+            self.player_engine.stop()
+            logger.debug("Controls stop command executed")
+        except Exception as e:
+            logger.error(f"Error executing controls stop command: {e}")
+    
+    def _on_controls_next(self):
+        """Handle next command from controls interface."""
+        try:
+            self.player_engine.next_song()
+            logger.debug("Controls next command executed")
+        except Exception as e:
+            logger.error(f"Error executing controls next command: {e}")
+    
+    def _on_controls_previous(self):
+        """Handle previous command from controls interface."""
+        try:
+            self.player_engine.previous_song()
+            logger.debug("Controls previous command executed")
+        except Exception as e:
+            logger.error(f"Error executing controls previous command: {e}")
     
     def _update_player_playlist(self):
         """Update player engine with current playlist state."""
@@ -415,6 +567,18 @@ class MusicPlayerApp:
                 return False
         return False
     
+    def start_controls_server(self):
+        """Start the controls server in a separate thread."""
+        if self.controls_server:
+            success = self.controls_server.start()
+            if success:
+                logger.info(f"Controls server started on {self.controls_server.get_server_url()}")
+                return True
+            else:
+                logger.error("Failed to start controls server")
+                return False
+        return False
+    
     def run(self):
         """Start the application."""
         logger.info("Starting Music Player Application")
@@ -432,11 +596,17 @@ class MusicPlayerApp:
         if self.enable_web:
             if not self.start_web_server():
                 logger.warning("Web server failed to start, continuing without web interface")
+            
+            # Start controls server (if web is enabled)
+            if not self.start_controls_server():
+                logger.warning("Controls server failed to start, continuing without controls interface")
         
         try:
             print(f"Music Player Application started")
             if self.web_server and self.web_server.is_running:
-                print(f"Web interface available at: {self.web_server.get_server_url()}")
+                print(f"Web display available at: {self.web_server.get_server_url()}")
+            if self.controls_server and self.controls_server.is_running:
+                print(f"Web controls available at: {self.controls_server.get_server_url()}")
             
             if self.enable_gui:
                 # Start GUI main loop
@@ -483,6 +653,11 @@ class MusicPlayerApp:
         if self.web_server:
             self.web_server.stop()
             logger.info("Web server stopped")
+        
+        # Stop controls server
+        if self.controls_server:
+            self.controls_server.stop()
+            logger.info("Controls server stopped")
         
         # Save playlist
         if self.playlist_manager:
@@ -593,7 +768,8 @@ def main():
         config_dir=args.config_dir, 
         web_port=args.port,
         enable_gui=not args.no_gui,
-        enable_web=not args.no_web
+        enable_web=not args.no_web,
+        debug_mode=args.debug
     )
     return app.run()
 

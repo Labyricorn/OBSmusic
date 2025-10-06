@@ -516,27 +516,44 @@
                 artworkEl: !!artworkEl
             });
 
-            // Apply font settings
-            if (config.font_family) {
-                body.style.fontFamily = config.font_family;
-            }
-            if (config.font_size) {
-                body.style.fontSize = config.font_size + 'px';
-            }
-
-            // Apply artist font size
-            if (config.artist_font_size && artistEl) {
-                artistEl.style.fontSize = config.artist_font_size + 'px';
-            }
-
-            // Apply colors
+            // Apply background color
             if (config.background_color) {
                 body.style.backgroundColor = config.background_color;
             }
-            if (config.text_color) {
-                if (titleEl) titleEl.style.color = config.text_color;
-                if (artistEl) artistEl.style.color = config.text_color;
+
+            // Apply title styling
+            if (titleEl && config.title) {
+                if (config.title.font_family) {
+                    titleEl.style.fontFamily = config.title.font_family;
+                }
+                if (config.title.font_size) {
+                    titleEl.style.fontSize = config.title.font_size + 'px';
+                }
+                if (config.title.font_weight) {
+                    titleEl.style.fontWeight = config.title.font_weight;
+                }
+                if (config.title.color) {
+                    titleEl.style.color = config.title.color;
+                }
             }
+
+            // Apply artist styling
+            if (artistEl && config.artist) {
+                if (config.artist.font_family) {
+                    artistEl.style.fontFamily = config.artist.font_family;
+                }
+                if (config.artist.font_size) {
+                    artistEl.style.fontSize = config.artist.font_size + 'px';
+                }
+                if (config.artist.font_weight) {
+                    artistEl.style.fontWeight = config.artist.font_weight;
+                }
+                if (config.artist.color) {
+                    artistEl.style.color = config.artist.color;
+                }
+            }
+
+
 
             // Apply layout settings
             console.log('Layout setting:', config.layout);
@@ -743,6 +760,18 @@
                         artwork_size: 60,
                         layout: 'horizontal',
                         show_artwork: true,
+                        title: {
+                            font_family: 'Arial',
+                            font_size: 32,
+                            font_weight: 'bold',
+                            color: '#ffffff'
+                        },
+                        artist: {
+                            font_family: 'Arial',
+                            font_size: 24,
+                            font_weight: 'normal',
+                            color: '#cccccc'
+                        },
                         progress_bar: {
                             show: true,
                             position: 'bottom',

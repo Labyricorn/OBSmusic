@@ -39,6 +39,9 @@ class WebServer:
             'status': 'Stopped'  # Play, Paused, Stopped
         }
         
+        # Control callbacks
+        self._control_callbacks = {}
+        
         self._setup_routes()
         self._setup_socketio_events()
     
@@ -62,6 +65,15 @@ class WebServer:
             except Exception as e:
                 logger.error(f"Error rendering config template: {e}")
                 return self._create_fallback_config()
+        
+        @self.app.route('/controls')
+        def controls():
+            """Music player controls interface route."""
+            try:
+                return render_template('controls.html', song_data=self.current_song_data)
+            except Exception as e:
+                logger.error(f"Error rendering controls template: {e}")
+                return self._create_fallback_controls()
         
         @self.app.route('/api/song')
         def get_current_song():
@@ -232,6 +244,21 @@ class WebServer:
                     self._on_song_ended_callback()
                 except Exception as e:
                     logger.error(f"Error in song ended callback: {e}")
+        
+        @self.socketio.on('control_action')
+        def handle_control_action(data):
+            """Handle control actions from the web controls interface."""
+            action = data.get('action')
+            logger.info(f"Received control action: {action}")
+            
+            if action in self._control_callbacks:
+                try:
+                    self._control_callbacks[action]()
+                    logger.debug(f"Executed control action: {action}")
+                except Exception as e:
+                    logger.error(f"Error executing control action {action}: {e}")
+            else:
+                logger.warning(f"No callback registered for control action: {action}")
     
     def _create_fallback_display(self) -> str:
         """Create a fallback HTML display when template is missing."""
@@ -287,6 +314,49 @@ class WebServer:
         </html>
         """
     
+    def _create_fallback_controls(self) -> str:
+        """Create a fallback HTML controls page when template is missing."""
+        return f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Music Player Controls</title>
+            <style>
+                body {{ 
+                    background: #1e3c72; 
+                    color: #fff; 
+                    font-family: Arial, sans-serif; 
+                    text-align: center; 
+                    padding: 50px; 
+                }}
+                .controls {{ margin: 20px 0; }}
+                button {{ 
+                    background: #ff6b6b; 
+                    color: white; 
+                    border: none; 
+                    padding: 15px 20px; 
+                    margin: 5px; 
+                    border-radius: 5px; 
+                    cursor: pointer; 
+                }}
+            </style>
+        </head>
+        <body>
+            <h1>Music Player Controls</h1>
+            <h2>{self.current_song_data['title']}</h2>
+            <h3>{self.current_song_data['artist']}</h3>
+            <p>Status: {self.current_song_data['status']}</p>
+            <div class="controls">
+                <button onclick="alert('Controls template not found')">⏮ Previous</button>
+                <button onclick="alert('Controls template not found')">⏹ Stop</button>
+                <button onclick="alert('Controls template not found')">⏸ Pause</button>
+                <button onclick="alert('Controls template not found')">▶ Play</button>
+                <button onclick="alert('Controls template not found')">⏭ Next</button>
+            </div>
+        </body>
+        </html>
+        """
+    
     def _get_default_config(self) -> Dict[str, Any]:
         """Get default configuration settings."""
         return {
@@ -300,6 +370,18 @@ class WebServer:
             'artwork_size': 200,
             'layout': 'horizontal',
             'show_status': True,
+            'title': {
+                'font_family': 'Arial',
+                'font_size': 32,
+                'font_weight': 'bold',
+                'color': '#ffffff'
+            },
+            'artist': {
+                'font_family': 'Arial',
+                'font_size': 24,
+                'font_weight': 'normal',
+                'color': '#cccccc'
+            },
             'progress_bar': {
                 'show': True,
                 'position': 'bottom',
@@ -446,9 +528,29 @@ class WebServer:
         self._on_song_ended_callback = callback
         logger.debug("Song ended callback set")
     
+    def set_control_callbacks(self, play_callback=None, pause_callback=None, stop_callback=None, 
+                             next_callback=None, previous_callback=None):
+        """Set callbacks for control actions from the web interface."""
+        if play_callback:
+            self._control_callbacks['play'] = play_callback
+        if pause_callback:
+            self._control_callbacks['pause'] = pause_callback
+        if stop_callback:
+            self._control_callbacks['stop'] = stop_callback
+        if next_callback:
+            self._control_callbacks['next'] = next_callback
+        if previous_callback:
+            self._control_callbacks['previous'] = previous_callback
+        
+        logger.debug(f"Control callbacks set: {list(self._control_callbacks.keys())}")
+    
     def get_server_url(self) -> str:
         """Get the server URL."""
         return f"http://{self.host}:{self.port}"
+    
+    def get_controls_url(self) -> str:
+        """Get the controls page URL."""
+        return f"http://{self.host}:{self.port}/controls"
 
 
 # Factory function for creating web server instance

@@ -4,7 +4,7 @@ A Python-based music player application that can play MP3 files with playlist ma
 
 [![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://python.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![GitHub Issues](https://img.shields.io/github/issues/yourusername/OBSmusic.svg)](https://github.com/yourusername/OBSmusic/issues)
+[![GitHub Issues](https://img.shields.io/github/issues/Labyricorn/OBSmusic.svg)](https://github.com/Labyricorn/OBSmusic/issues)
 
 ## 🎵 Overview
 
@@ -22,27 +22,41 @@ OBSmusic is a comprehensive music player designed specifically for content creat
 ## Project Structure
 
 ```
-music_player/
+OBSmusic/
 ├── main.py                 # Application entry point
 ├── requirements.txt        # Python dependencies
 ├── activate_env.bat        # Convenience script to activate virtual environment
 ├── obsmusic/               # Virtual environment (created by python -m venv)
 ├── models/                 # Data models
-│   └── __init__.py
+│   ├── __init__.py
+│   ├── playlist.py
+│   └── song.py
 ├── core/                   # Core functionality
-│   └── __init__.py
+│   ├── __init__.py
+│   ├── config_manager.py
+│   ├── player_engine.py
+│   └── playlist_manager.py
 ├── gui/                    # Desktop GUI
-│   └── __init__.py
+│   ├── __init__.py
+│   └── main_window.py
 ├── web/                    # Web server and templates
 │   ├── __init__.py
+│   ├── server.py
+│   ├── controls_server.py
 │   ├── templates/          # HTML templates
-│   └── static/             # CSS and JavaScript
+│   │   ├── display.html
+│   │   ├── controls.html
+│   │   └── config.html
+│   └── static/             # CSS and JavaScript (placeholder files)
 │       ├── css/
 │       └── js/
 ├── tests/                  # Unit tests
-│   └── __init__.py
+│   ├── __init__.py
+│   └── [various test files]
 └── data/                   # Data storage
     ├── artwork/            # Cached album artwork
+    ├── config.json         # Configuration file
+    ├── playlist.json       # Playlist data
     └── .gitkeep
 ```
 
@@ -182,7 +196,7 @@ For complete configuration details, see [Configuration Settings](configuration_s
 ## Support
 
 If you encounter any issues or have questions:
-- Check the [Issues](https://github.com/yourusername/OBSmusic/issues) page
+- Check the [Issues](https://github.com/Labyricorn/OBSmusic/issues) page
 - Review the [Configuration Settings](configuration_settings.md) for customization options
 - Check the [Progress Bar Configuration](PROGRESS_BAR_CONFIGURATION.md) for advanced progress bar setup
 - Review the [Testing Documentation](TESTING_DOCUMENTATION.md)

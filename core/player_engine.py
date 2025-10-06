@@ -10,9 +10,14 @@ from enum import Enum
 from typing import Optional, Callable, TYPE_CHECKING
 from pathlib import Path
 
+# Set SDL to disable audio completely BEFORE importing pygame
+os.environ['SDL_AUDIODRIVER'] = 'dummy'
+os.environ['SDL_VIDEODRIVER'] = 'dummy'  # Also disable video to be safe
+
 try:
     import pygame
-    import pygame.mixer
+    # Don't import pygame.mixer since we won't use it
+    # import pygame.mixer
 except ImportError as e:
     logging.error(f"Required dependency missing: {e}")
     raise
@@ -85,20 +90,18 @@ class PlayerEngine:
             RuntimeError: If mixer initialization fails
         """
         try:
-            # Initialize pygame (required for event system)
+            # Initialize pygame without audio subsystem to completely disable audio output
             pygame.init()
             
-            # Initialize pygame mixer
-            pygame.mixer.pre_init(frequency=frequency, size=size, channels=channels, buffer=buffer)
-            pygame.mixer.init()
+            # Skip pygame mixer initialization entirely - we don't need it for web audio
+            # pygame.mixer.pre_init(frequency=frequency, size=size, channels=channels, buffer=buffer)
+            # pygame.mixer.init()
+            # pygame.mixer.music.set_endevent(pygame.USEREVENT + 1)
             
-            # Set up event handling for music end
-            pygame.mixer.music.set_endevent(pygame.USEREVENT + 1)
-            
-            logger.debug(f"Pygame mixer initialized: {frequency}Hz, {size}bit, {channels}ch, buffer={buffer}")
+            logger.debug(f"Pygame initialized without audio subsystem (web audio only)")
             
         except Exception as e:
-            error_msg = f"Failed to initialize pygame mixer: {e}"
+            error_msg = f"Failed to initialize pygame: {e}"
             logger.error(error_msg)
             raise RuntimeError(error_msg)
     
@@ -319,11 +322,11 @@ class PlayerEngine:
                     if not self._load_file(file_path):
                         return False
                 elif self._state == PlaybackState.PAUSED:
-                    # Resume paused playback
-                    pygame.mixer.music.unpause()
+                    # Resume paused playback (web audio only)
+                    # pygame.mixer.music.unpause()  # Commented out to disable audio output
                     self._set_state(PlaybackState.PLAYING)
                     self._start_position_tracking()
-                    logger.debug("Resumed playback")
+                    logger.debug("Resumed playback (web audio only)")
                     return True
                 elif self._current_file:
                     # Restart current file
@@ -333,12 +336,12 @@ class PlayerEngine:
                     logger.warning("No file to play")
                     return False
                 
-                # Start playback
-                pygame.mixer.music.play()
+                # Skip pygame audio playback - we'll use web audio instead
+                # pygame.mixer.music.play()  # Commented out to disable audio output
                 self._set_state(PlaybackState.PLAYING)
                 self._start_position_tracking()
                 
-                logger.info(f"Started playing: {Path(self._current_file).name}")
+                logger.info(f"Started playing (web audio only): {Path(self._current_file).name}")
                 return True
                 
             except Exception as e:
@@ -356,10 +359,11 @@ class PlayerEngine:
         with self._lock:
             try:
                 if self._state == PlaybackState.PLAYING:
-                    pygame.mixer.music.pause()
+                    # Skip pygame pause - we'll handle state only for web audio
+                    # pygame.mixer.music.pause()  # Commented out to disable audio output
                     self._set_state(PlaybackState.PAUSED)
                     self._stop_position_tracking()
-                    logger.debug("Paused playback")
+                    logger.debug("Paused playback (web audio only)")
                     return True
                 else:
                     logger.warning(f"Cannot pause from state: {self._state}")
@@ -380,11 +384,12 @@ class PlayerEngine:
         with self._lock:
             try:
                 if self._state in [PlaybackState.PLAYING, PlaybackState.PAUSED]:
-                    pygame.mixer.music.stop()
+                    # Skip pygame stop - we'll handle state only for web audio
+                    # pygame.mixer.music.stop()  # Commented out to disable audio output
                     self._position = 0.0
                     self._set_state(PlaybackState.STOPPED)
                     self._stop_position_tracking()
-                    logger.debug("Stopped playback")
+                    logger.debug("Stopped playback (web audio only)")
                     return True
                 else:
                     logger.debug(f"Already stopped (state: {self._state})")
@@ -410,10 +415,11 @@ class PlayerEngine:
             volume = max(0.0, min(1.0, volume))
             
             with self._lock:
-                pygame.mixer.music.set_volume(volume)
+                # Skip pygame volume - we'll handle volume in web audio
+                # pygame.mixer.music.set_volume(volume)  # Commented out to disable audio output
                 self._volume = volume
                 
-            logger.debug(f"Set volume to {volume:.2f}")
+            logger.debug(f"Set volume to {volume:.2f} (web audio only)")
             return True
             
         except Exception as e:
@@ -515,8 +521,8 @@ class PlayerEngine:
             
             self._set_state(PlaybackState.LOADING)
             
-            # Load the file
-            pygame.mixer.music.load(file_path)
+            # Skip pygame file loading - we'll handle file info only for web audio
+            # pygame.mixer.music.load(file_path)  # Commented out to disable audio output
             
             self._current_file = file_path
             self._position = 0.0
@@ -525,7 +531,7 @@ class PlayerEngine:
             # We'll use mutagen if available, otherwise set to 0
             self._duration = self._get_file_duration(file_path)
             
-            logger.debug(f"Loaded file: {Path(file_path).name} (duration: {self._duration:.1f}s)")
+            logger.debug(f"Loaded file (web audio only): {Path(file_path).name} (duration: {self._duration:.1f}s)")
             return True
             
         except Exception as e:
@@ -636,22 +642,13 @@ class PlayerEngine:
         
         while self._position_thread_running and self._state == PlaybackState.PLAYING:
             try:
-                # Check if music is still playing
-                if not pygame.mixer.music.get_busy():
-                    # Music finished
-                    with self._lock:
-                        if self._state == PlaybackState.PLAYING:
-                            self._position = self._duration
-                            self._set_state(PlaybackState.STOPPED)
-                            
-                            # Handle song finished (includes playlist advancement)
-                            self._handle_song_finished()
-                    break
-                
-                # Update position
+                # Update position based on elapsed time (web audio handles actual playback)
                 elapsed = time.time() - start_time
                 with self._lock:
                     self._position = min(elapsed, self._duration)
+                    
+                    # Don't auto-advance based on duration - let web audio control song endings
+                    # The web audio player will notify us when the song actually ends
                 
                 time.sleep(0.1)  # Update every 100ms
                 
@@ -668,16 +665,17 @@ class PlayerEngine:
         pygame events, especially the music end event.
         """
         try:
-            # Process pygame events
-            for event in pygame.event.get():
-                if event.type == pygame.USEREVENT + 1:  # Music end event
-                    with self._lock:
-                        if self._state == PlaybackState.PLAYING:
-                            self._position = self._duration
-                            self._set_state(PlaybackState.STOPPED)
-                            
-                            # Handle song finished (includes playlist advancement)
-                            self._handle_song_finished()
+            # Skip pygame event processing - web audio handles playback events
+            # for event in pygame.event.get():
+            #     if event.type == pygame.USEREVENT + 1:  # Music end event
+            #         with self._lock:
+            #             if self._state == PlaybackState.PLAYING:
+            #                 self._position = self._duration
+            #                 self._set_state(PlaybackState.STOPPED)
+            #                 
+            #                 # Handle song finished (includes playlist advancement)
+            #                 self._handle_song_finished()
+            pass  # No pygame event processing needed for web audio
         
         except Exception as e:
             logger.error(f"Error in player update: {e}")

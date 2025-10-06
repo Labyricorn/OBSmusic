@@ -8,6 +8,18 @@ Add the following sections to your `data/config.json`:
 
 ```json
 {
+  "title": {
+    "font_family": "Arial",
+    "font_size": 32,
+    "font_weight": "bold",
+    "color": "#ffffff"
+  },
+  "artist": {
+    "font_family": "Arial",
+    "font_size": 24,
+    "font_weight": "normal",
+    "color": "#cccccc"
+  },
   "progress_bar": {
     "show": true,
     "position": "bottom",
@@ -40,6 +52,24 @@ Add the following sections to your `data/config.json`:
 | `background_color` | string | `"#333333"` | Background color of the progress bar (hex color) |
 | `fill_color` | string | `"#ff6b6b"` | Color of the progress fill (hex color) |
 | `border_radius` | number | `3` | Border radius in pixels for rounded corners |
+
+### Title Settings
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `font_family` | string | `"Arial"` | Font family for the song title |
+| `font_size` | number | `32` | Font size for the song title in pixels |
+| `font_weight` | string | `"bold"` | Font weight: "normal", "bold", "lighter", "bolder", or numeric (100-900) |
+| `color` | string | `"#ffffff"` | Text color for the song title (hex color) |
+
+### Artist Settings
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `font_family` | string | `"Arial"` | Font family for the artist name |
+| `font_size` | number | `24` | Font size for the artist name in pixels |
+| `font_weight` | string | `"normal"` | Font weight: "normal", "bold", "lighter", "bolder", or numeric (100-900) |
+| `color` | string | `"#cccccc"` | Text color for the artist name (hex color) |
 
 ### Frame Settings
 
@@ -182,6 +212,80 @@ Add the following sections to your `data/config.json`:
     "corner_radius": 0,
     "frame_color": "#00ff00",
     "fill_color": "#001100"
+  }
+}
+```
+
+#### Text Styling Examples
+
+#### Bold Title with Subtle Artist
+```json
+{
+  "title": {
+    "font_family": "Arial",
+    "font_size": 36,
+    "font_weight": "bold",
+    "color": "#ffffff"
+  },
+  "artist": {
+    "font_family": "Arial",
+    "font_size": 18,
+    "font_weight": "normal",
+    "color": "#888888"
+  }
+}
+```
+
+#### Elegant Serif Styling
+```json
+{
+  "title": {
+    "font_family": "Georgia, serif",
+    "font_size": 28,
+    "font_weight": "normal",
+    "color": "#f0f0f0"
+  },
+  "artist": {
+    "font_family": "Georgia, serif",
+    "font_size": 20,
+    "font_weight": "italic",
+    "color": "#cccccc"
+  }
+}
+```
+
+#### Gaming/Streaming Style
+```json
+{
+  "title": {
+    "font_family": "Impact, sans-serif",
+    "font_size": 32,
+    "font_weight": "bold",
+    "color": "#00ff00"
+  },
+  "artist": {
+    "font_family": "Arial, sans-serif",
+    "font_size": 16,
+    "font_weight": "normal",
+    "color": "#66ff66"
+  }
+}
+```
+
+#### Minimalist Modern
+```json
+{
+  "title": {
+    "font_family": "Helvetica, sans-serif",
+    "font_size": 24,
+    "font_weight": "300",
+    "color": "#ffffff"
+  },
+  "artist": {
+    "font_family": "Helvetica, sans-serif",
+    "font_size": 16,
+    "font_weight": "200",
+    "color": "#aaaaaa"
   }
 }
 ```
