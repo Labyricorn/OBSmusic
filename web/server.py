@@ -20,9 +20,10 @@ logger = logging.getLogger(__name__)
 class WebServer:
     """Flask web server for OBS integration with WebSocket support."""
     
-    def __init__(self, host: str = '127.0.0.1', port: int = 8080):
+    def __init__(self, host: str = '127.0.0.1', port: int = 8080, debug_mode: bool = False):
         self.host = host
         self.port = port
+        self.debug_mode = debug_mode
         self.app = Flask(__name__)
         self.app.config['SECRET_KEY'] = 'music_player_secret_key'
         self.socketio = SocketIO(self.app, cors_allowed_origins="*")
@@ -48,7 +49,7 @@ class WebServer:
         def display():
             """Main display route for OBS browser source."""
             try:
-                return render_template('display.html', song_data=self.current_song_data)
+                return render_template('display.html', song_data=self.current_song_data, debug_mode=self.debug_mode)
             except Exception as e:
                 logger.error(f"Error rendering display template: {e}")
                 return self._create_fallback_display()
@@ -85,6 +86,54 @@ class WebServer:
             except Exception as e:
                 logger.error(f"Error serving artwork {filename}: {e}")
                 return jsonify({'error': 'Failed to serve artwork'}), 500
+        
+        @self.app.route('/api/audio/<path:song_id>')
+        def serve_audio(song_id):
+            """Serve audio files for web playback."""
+            try:
+                from flask import send_file, Response
+                import urllib.parse
+                
+                # Decode the song ID (which is the base64 encoded file path)
+                import base64
+                try:
+                    file_path = base64.b64decode(song_id.encode()).decode('utf-8')
+                except Exception as decode_error:
+                    logger.error(f"Failed to decode song ID {song_id}: {decode_error}")
+                    return jsonify({'error': 'Invalid song ID'}), 400
+                
+                # Verify the file exists and is an MP3
+                if not os.path.exists(file_path):
+                    logger.warning(f"Audio file not found: {file_path}")
+                    return jsonify({'error': 'Audio file not found'}), 404
+                
+                if not file_path.lower().endswith('.mp3'):
+                    logger.warning(f"Invalid audio file type: {file_path}")
+                    return jsonify({'error': 'Invalid audio file type'}), 400
+                
+                logger.debug(f"Serving audio file: {file_path}")
+                
+                # Serve the file with appropriate headers for audio streaming
+                def generate():
+                    with open(file_path, 'rb') as f:
+                        data = f.read(1024)
+                        while data:
+                            yield data
+                            data = f.read(1024)
+                
+                return Response(
+                    generate(),
+                    mimetype='audio/mpeg',
+                    headers={
+                        'Content-Disposition': f'inline; filename="{os.path.basename(file_path)}"',
+                        'Accept-Ranges': 'bytes',
+                        'Cache-Control': 'no-cache'
+                    }
+                )
+                
+            except Exception as e:
+                logger.error(f"Error serving audio file {song_id}: {e}")
+                return jsonify({'error': 'Failed to serve audio file'}), 500
         
         @self.app.route('/api/next', methods=['POST'])
         def next_song():
@@ -172,6 +221,17 @@ class WebServer:
         def handle_song_request():
             """Handle request for current song data."""
             emit('song_update', self.current_song_data)
+        
+        @self.socketio.on('song_ended')
+        def handle_song_ended():
+            """Handle notification that a song has ended in the web player."""
+            logger.info("Received song_ended event from web player")
+            # Store the callback to notify the player engine
+            if hasattr(self, '_on_song_ended_callback') and self._on_song_ended_callback:
+                try:
+                    self._on_song_ended_callback()
+                except Exception as e:
+                    logger.error(f"Error in song ended callback: {e}")
     
     def _create_fallback_display(self) -> str:
         """Create a fallback HTML display when template is missing."""
@@ -239,7 +299,24 @@ class WebServer:
             'show_artwork': True,
             'artwork_size': 200,
             'layout': 'horizontal',
-            'show_status': True
+            'show_status': True,
+            'progress_bar': {
+                'show': True,
+                'position': 'bottom',
+                'width': 80,
+                'height': 6,
+                'spacing': 20,
+                'background_color': '#333333',
+                'fill_color': '#ff6b6b',
+                'border_radius': 3
+            },
+            'frame': {
+                'show': True,
+                'thickness': 2,
+                'corner_radius': 10,
+                'frame_color': '#ffffff',
+                'fill_color': 'transparent'
+            }
         }
     
     def _find_available_port(self, start_port: int = 8080) -> int:
@@ -327,14 +404,15 @@ class WebServer:
         self.is_running = False
         logger.info("Web server stopped")
     
-    def update_song_data(self, title: str, artist: str, artwork_url: Optional[str] = None, is_playing: bool = True, status: str = 'Stopped'):
+    def update_song_data(self, title: str, artist: str, artwork_url: Optional[str] = None, is_playing: bool = True, status: str = 'Stopped', audio_url: Optional[str] = None):
         """Update current song data and broadcast to all connected clients."""
         self.current_song_data = {
             'title': title,
             'artist': artist,
             'artwork_url': artwork_url,
             'is_playing': is_playing,
-            'status': status
+            'status': status,
+            'audio_url': audio_url
         }
         
         # Broadcast update to all connected WebSocket clients
@@ -363,15 +441,20 @@ class WebServer:
         else:
             logger.warning(f"Cannot broadcast status update - server not running: {status}")
     
+    def set_on_song_ended_callback(self, callback):
+        """Set callback for when a song ends in the web player."""
+        self._on_song_ended_callback = callback
+        logger.debug("Song ended callback set")
+    
     def get_server_url(self) -> str:
         """Get the server URL."""
         return f"http://{self.host}:{self.port}"
 
 
 # Factory function for creating web server instance
-def create_web_server(host: str = '127.0.0.1', port: int = 8080) -> WebServer:
+def create_web_server(host: str = '127.0.0.1', port: int = 8080, debug_mode: bool = False) -> WebServer:
     """Create and return a WebServer instance."""
-    return WebServer(host, port)
+    return WebServer(host, port, debug_mode)
 
 
 if __name__ == '__main__':

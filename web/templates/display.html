@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,7 +17,7 @@
             text-align: center;
             overflow: hidden;
         }
-        
+
         .song-container {
             display: flex;
             align-items: center;
@@ -24,58 +25,58 @@
             min-height: 100vh;
             flex-direction: column;
         }
-        
+
         .song-container.horizontal {
             flex-direction: row;
             gap: 30px;
         }
-        
+
         .song-container.left-justified {
             flex-direction: column;
             align-items: flex-start;
             text-align: left;
             padding-left: 50px;
         }
-        
+
         .song-container.right-justified {
             flex-direction: column;
             align-items: flex-end;
             text-align: right;
             padding-right: 50px;
         }
-        
+
         .song-info {
             text-align: center;
         }
-        
+
         .song-info.horizontal {
             text-align: left;
             display: flex;
             flex-direction: column;
             justify-content: center;
         }
-        
+
         .song-info.left-justified {
             text-align: left;
         }
-        
+
         .song-info.right-justified {
             text-align: right;
         }
-        
+
         .song-title {
             font-size: 2em;
             font-weight: bold;
             margin-bottom: 10px;
             color: #ffffff;
         }
-        
+
         .song-artist {
             font-size: 1.5em;
             margin-bottom: 20px;
             color: #cccccc;
         }
-        
+
         .song-artwork {
             max-width: 200px;
             max-height: 200px;
@@ -83,37 +84,108 @@
             margin: 20px auto;
             display: block;
         }
-        
+
         .song-artwork.horizontal {
             margin: 0;
             flex-shrink: 0;
         }
-        
+
         .song-container.left-justified .song-artwork {
             margin: 20px 0 20px 0;
             align-self: flex-start;
         }
-        
+
         .song-container.right-justified .song-artwork {
             margin: 20px 0 20px 0;
             align-self: flex-end;
         }
-        
+
         .song-artwork.hidden {
             display: none !important;
         }
-        
+
         .status-indicator {
             font-size: 0.8em;
             color: #ff6b6b;
             margin-top: 10px;
         }
-        
+
         .no-song {
             opacity: 0.7;
         }
+
+        .progress-bar-container {
+            position: fixed;
+            height: 4px;
+            background-color: #333333;
+            z-index: 1000;
+            border-radius: 2px;
+            overflow: hidden;
+            width: 80%;
+            left: 50%;
+            transform: translateX(-50%);
+            --spacing: 20px;
+            --frame-margin: 20px;
+        }
+
+        .progress-bar-container.top {
+            top: calc(var(--frame-margin) + var(--spacing));
+        }
+
+        .progress-bar-container.bottom {
+            bottom: calc(var(--frame-margin) + var(--spacing));
+        }
+
+        .progress-bar-container.inline {
+            position: relative;
+            margin: var(--spacing) auto;
+            transform: none;
+            left: auto;
+        }
+
+        .progress-bar-container.hidden {
+            display: none !important;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background-color: #ff6b6b;
+            width: 0%;
+            transition: width 0.1s ease-out;
+            border-radius: inherit;
+        }
+
+        .player-frame {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 2000;
+            border: 2px solid #ffffff;
+            border-radius: 10px;
+            background-color: transparent;
+            margin: 20px;
+        }
+
+        .player-frame.hidden {
+            display: none !important;
+        }
+
+        .player-frame-fill {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: -1;
+            border-radius: 10px;
+            margin: 20px;
+        }
     </style>
 </head>
+
 <body>
     <div class="song-container">
         {% if song_data.artwork_url %}
@@ -128,27 +200,76 @@
         </div>
     </div>
 
+    <!-- Progress Bar -->
+    <div id="progress-bar-container" class="progress-bar-container bottom">
+        <div id="progress-bar-fill" class="progress-bar-fill"></div>
+    </div>
+
+    <!-- Player Frame Fill (background) -->
+    <div id="player-frame-fill" class="player-frame-fill hidden"></div>
+
+    <!-- Player Frame Border -->
+    <div id="player-frame" class="player-frame hidden"></div>
+
+    <!-- Debug controls (only visible in debug mode) -->
+    {% if debug_mode %}
+    <div id="debug-controls"
+        style="position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 5px;">
+        <div style="color: #ff6b6b; font-size: 10px; margin-bottom: 5px;">DEBUG MODE</div>
+        <button id="test-next"
+            style="background: #ff6b6b; color: white; border: none; padding: 5px 10px; margin: 2px; border-radius: 3px; cursor: pointer;">Test
+            Next Song</button>
+        <button id="test-connection"
+            style="background: #4CAF50; color: white; border: none; padding: 5px 10px; margin: 2px; border-radius: 3px; cursor: pointer;">Test
+            Connection</button>
+        <button id="test-progress"
+            style="background: #2196F3; color: white; border: none; padding: 5px 10px; margin: 2px; border-radius: 3px; cursor: pointer;">Test
+            Progress Bar</button>
+        <div id="debug-info" style="color: white; font-size: 12px; margin-top: 5px;"></div>
+    </div>
+    {% endif %}
+
+    <!-- Hidden HTML5 audio player for web playback -->
+    <audio id="web-audio-player" preload="auto" style="display: none;">
+        {% if song_data.audio_url %}
+        <source src="{{ song_data.audio_url }}" type="audio/mpeg">
+        {% endif %}
+        Your browser does not support the audio element.
+    </audio>
+
     <script>
         // Initialize Socket.IO connection
         const socket = io();
-        
+
         // Elements
         const titleElement = document.getElementById('song-title');
         const artistElement = document.getElementById('song-artist');
         const artworkElement = document.getElementById('song-artwork');
         const statusElement = document.getElementById('status-indicator');
         const containerElement = document.querySelector('.song-info');
-        
+        const audioPlayer = document.getElementById('web-audio-player');
+        const progressBarContainer = document.getElementById('progress-bar-container');
+        const progressBarFill = document.getElementById('progress-bar-fill');
+        const playerFrame = document.getElementById('player-frame');
+        const playerFrameFill = document.getElementById('player-frame-fill');
+
+        // Audio player state tracking
+        let currentAudioUrl = null;
+        let isAudioLoaded = false;
+        let userHasInteracted = false;
+        let pendingPlayback = false;
+
         // Handle song updates from WebSocket
-        socket.on('song_update', function(data) {
+        socket.on('song_update', function (data) {
             console.log('Received song update:', data);
-            
+            console.log('Audio URL in update:', data.audio_url);
+
             // Update title
             titleElement.textContent = data.title || 'No song playing';
-            
+
             // Update artist
             artistElement.textContent = data.artist || 'Music Player';
-            
+
             // Update artwork
             if (data.artwork_url) {
                 if (!artworkElement) {
@@ -166,10 +287,55 @@
             } else if (artworkElement) {
                 artworkElement.style.display = 'none';
             }
-            
+
+            // Store if we should be playing for when audio loads
+            if (data.is_playing && data.status === 'Playing') {
+                pendingPlayback = true;
+            } else {
+                pendingPlayback = false;
+            }
+
+            // Update audio source if changed
+            if (data.audio_url && data.audio_url !== currentAudioUrl) {
+                console.log('Loading new audio:', data.audio_url);
+                currentAudioUrl = data.audio_url;
+                isAudioLoaded = false;
+
+                // Update audio source
+                audioPlayer.src = data.audio_url;
+                audioPlayer.load(); // Reload the audio element
+
+                // Wait for audio to be ready
+                audioPlayer.addEventListener('canplay', function () {
+                    isAudioLoaded = true;
+                    console.log('Audio loaded and ready to play');
+
+                    // If we should be playing and user has interacted, start playback
+                    if (pendingPlayback && userHasInteracted) {
+                        playAudio();
+                    }
+                }, { once: true });
+
+                audioPlayer.addEventListener('error', function (e) {
+                    console.error('Audio loading error:', e);
+                    isAudioLoaded = false;
+                });
+            }
+
+            // Handle playback state for current audio
+            if (isAudioLoaded) {
+                if (data.is_playing && data.status === 'Playing') {
+                    playAudio();
+                } else if (data.status === 'Paused') {
+                    pauseAudio();
+                } else if (data.status === 'Stopped') {
+                    stopAudio();
+                }
+            }
+
             // Update status
             statusElement.textContent = data.status || (data.is_playing ? 'Playing' : 'Stopped');
-            
+
             // Update container class based on playing status
             if (data.is_playing && data.title !== 'No song playing') {
                 containerElement.classList.remove('no-song');
@@ -177,17 +343,165 @@
                 containerElement.classList.add('no-song');
             }
         });
-        
+
+        // Audio control functions
+        function playAudio() {
+            console.log('playAudio() called - audioPlayer:', !!audioPlayer, 'isAudioLoaded:', isAudioLoaded, 'userHasInteracted:', userHasInteracted);
+            if (audioPlayer && isAudioLoaded) {
+                console.log('Attempting to play audio...');
+                audioPlayer.play().then(() => {
+                    console.log('Audio playback started successfully');
+                    userHasInteracted = true; // Mark that we have permission
+                }).catch(error => {
+                    console.error('Error starting audio playback:', error);
+                    // Try to handle autoplay policy issues
+                    if (error.name === 'NotAllowedError') {
+                        console.log('Autoplay blocked - user interaction required');
+                        showClickPrompt();
+                    }
+                });
+            } else {
+                console.log('Cannot play audio - audioPlayer:', !!audioPlayer, 'isAudioLoaded:', isAudioLoaded);
+            }
+        }
+
+        // Show a visual prompt for user interaction
+        function showClickPrompt() {
+            if (!document.getElementById('click-prompt')) {
+                const prompt = document.createElement('div');
+                prompt.id = 'click-prompt';
+                prompt.innerHTML = 'Click anywhere to enable audio playback';
+                prompt.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: rgba(255, 107, 107, 0.9);
+                    color: white;
+                    padding: 10px 20px;
+                    border-radius: 5px;
+                    z-index: 1000;
+                    cursor: pointer;
+                `;
+                document.body.appendChild(prompt);
+
+                // Add click handler to enable audio
+                function enableAudio() {
+                    console.log('User clicked to enable audio');
+                    userHasInteracted = true;
+                    if (audioPlayer && isAudioLoaded && pendingPlayback) {
+                        audioPlayer.play().then(() => {
+                            console.log('Audio playback started after user interaction');
+                            prompt.remove();
+                        }).catch(e => {
+                            console.error('Still failed after click:', e);
+                            prompt.textContent = 'Audio playback failed - try refreshing the page';
+                        });
+                    } else {
+                        prompt.remove();
+                    }
+                    document.removeEventListener('click', enableAudio);
+                }
+
+                document.addEventListener('click', enableAudio, { once: true });
+            }
+        }
+
+        function pauseAudio() {
+            console.log('pauseAudio() called');
+            if (audioPlayer && !audioPlayer.paused) {
+                audioPlayer.pause();
+                console.log('Audio playback paused');
+            }
+        }
+
+        function stopAudio() {
+            console.log('stopAudio() called');
+            if (audioPlayer) {
+                audioPlayer.pause();
+                audioPlayer.currentTime = 0;
+                console.log('Audio playback stopped');
+            }
+        }
+
+        // Handle audio events
+        audioPlayer.addEventListener('ended', function () {
+            console.log('Audio playback ended - notifying server');
+            // Notify server that song ended so it can advance to next song
+            socket.emit('song_ended');
+        });
+
+        audioPlayer.addEventListener('error', function (e) {
+            console.error('Audio playback error:', e);
+        });
+
+        // Add more debugging events
+        audioPlayer.addEventListener('loadstart', function () {
+            console.log('Audio loading started');
+        });
+
+        audioPlayer.addEventListener('canplay', function () {
+            console.log('Audio can start playing');
+        });
+
+        audioPlayer.addEventListener('play', function () {
+            console.log('Audio play event fired');
+        });
+
+        audioPlayer.addEventListener('pause', function () {
+            console.log('Audio pause event fired');
+        });
+
+        audioPlayer.addEventListener('timeupdate', function () {
+            // Update progress bar
+            updateProgressBar();
+            
+            // Only log occasionally to avoid spam
+            if (Math.floor(audioPlayer.currentTime) % 10 === 0) {
+                console.log(`Audio time: ${audioPlayer.currentTime.toFixed(1)}s / ${audioPlayer.duration ? audioPlayer.duration.toFixed(1) : 'unknown'}s`);
+            }
+        });
+
+        audioPlayer.addEventListener('durationchange', function () {
+            console.log('Audio duration changed:', audioPlayer.duration);
+        });
+
+        // Update progress bar based on audio player time
+        function updateProgressBar() {
+            if (progressBarFill && audioPlayer && audioPlayer.duration) {
+                const progress = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+                progressBarFill.style.width = progress + '%';
+            }
+        }
+
+        // Demo function to show progress bar animation (for testing)
+        function demoProgressBar() {
+            if (progressBarFill) {
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += 1;
+                    progressBarFill.style.width = progress + '%';
+                    if (progress >= 100) {
+                        clearInterval(interval);
+                        // Reset after a moment
+                        setTimeout(() => {
+                            progressBarFill.style.width = '0%';
+                        }, 1000);
+                    }
+                }, 100);
+            }
+        }
+
         // Handle configuration updates
-        socket.on('config_updated', function(config) {
+        socket.on('config_updated', function (config) {
             console.log('Received config update:', config);
             applyConfiguration(config);
         });
-        
+
         // Apply configuration to the display
         function applyConfiguration(config) {
             console.log('Applying configuration:', config);
-            
+
             const body = document.body;
             const titleEl = document.getElementById('song-title');
             const artistEl = document.getElementById('song-artist');
@@ -195,13 +509,13 @@
             const statusEl = document.getElementById('status-indicator');
             const containerEl = document.querySelector('.song-container');
             const songInfoEl = document.querySelector('.song-info');
-            
+
             console.log('Elements found:', {
                 containerEl: !!containerEl,
                 songInfoEl: !!songInfoEl,
                 artworkEl: !!artworkEl
             });
-            
+
             // Apply font settings
             if (config.font_family) {
                 body.style.fontFamily = config.font_family;
@@ -209,12 +523,12 @@
             if (config.font_size) {
                 body.style.fontSize = config.font_size + 'px';
             }
-            
+
             // Apply artist font size
             if (config.artist_font_size && artistEl) {
                 artistEl.style.fontSize = config.artist_font_size + 'px';
             }
-            
+
             // Apply colors
             if (config.background_color) {
                 body.style.backgroundColor = config.background_color;
@@ -223,10 +537,10 @@
                 if (titleEl) titleEl.style.color = config.text_color;
                 if (artistEl) artistEl.style.color = config.text_color;
             }
-            
+
             // Apply layout settings
             console.log('Layout setting:', config.layout);
-            
+
             // Remove all layout classes first
             const layoutClasses = ['horizontal', 'left-justified', 'right-justified'];
             layoutClasses.forEach(layoutClass => {
@@ -234,7 +548,7 @@
                 if (songInfoEl) songInfoEl.classList.remove(layoutClass);
                 if (artworkEl) artworkEl.classList.remove(layoutClass);
             });
-            
+
             // Apply the current layout
             if (config.layout === 'horizontal') {
                 console.log('Applying horizontal layout');
@@ -274,7 +588,7 @@
                 console.log('Applying vertical layout (default)');
                 // No additional classes needed for vertical layout
             }
-            
+
             // Apply artwork settings
             if (artworkEl) {
                 // Set artwork size
@@ -283,7 +597,7 @@
                     artworkEl.style.maxHeight = config.artwork_size + 'px';
                     console.log('Set artwork size to:', config.artwork_size + 'px');
                 }
-                
+
                 // Show/hide artwork
                 if (config.show_artwork === false) {
                     artworkEl.classList.add('hidden');
@@ -291,7 +605,7 @@
                     artworkEl.classList.remove('hidden');
                 }
             }
-            
+
             // Apply status display settings
             if (statusEl) {
                 if (config.show_status === false) {
@@ -300,10 +614,106 @@
                     statusEl.style.display = 'block';
                 }
             }
-            
+
+            // Apply progress bar settings
+            if (progressBarContainer && config.progress_bar) {
+                const progressConfig = config.progress_bar;
+                console.log('Applying progress bar configuration:', progressConfig);
+                
+                // Show/hide progress bar
+                if (progressConfig.show === false) {
+                    console.log('Hiding progress bar');
+                    progressBarContainer.classList.add('hidden');
+                } else {
+                    console.log('Showing progress bar');
+                    progressBarContainer.classList.remove('hidden');
+                    
+                    // Remove existing position classes
+                    progressBarContainer.classList.remove('top', 'bottom', 'inline');
+                    
+                    // Apply position
+                    if (progressConfig.position === 'top') {
+                        progressBarContainer.classList.add('top');
+                    } else if (progressConfig.position === 'bottom') {
+                        progressBarContainer.classList.add('bottom');
+                    } else if (progressConfig.position === 'inline') {
+                        progressBarContainer.classList.add('inline');
+                        // For inline position, insert after song info
+                        if (songInfoEl && progressBarContainer.parentNode !== songInfoEl.parentNode) {
+                            songInfoEl.parentNode.insertBefore(progressBarContainer, songInfoEl.nextSibling);
+                        }
+                    }
+                    
+                    // Apply styling
+                    if (progressConfig.height) {
+                        progressBarContainer.style.height = progressConfig.height + 'px';
+                    }
+                    if (progressConfig.width) {
+                        progressBarContainer.style.width = progressConfig.width + '%';
+                    }
+                    if (progressConfig.spacing) {
+                        progressBarContainer.style.setProperty('--spacing', progressConfig.spacing + 'px');
+                    }
+                    if (progressConfig.background_color) {
+                        progressBarContainer.style.backgroundColor = progressConfig.background_color;
+                    }
+                    if (progressConfig.border_radius) {
+                        progressBarContainer.style.borderRadius = progressConfig.border_radius + 'px';
+                    }
+                    
+                    // Apply fill color
+                    if (progressBarFill && progressConfig.fill_color) {
+                        progressBarFill.style.backgroundColor = progressConfig.fill_color;
+                    }
+                }
+            }
+
+            // Apply frame settings
+            if (playerFrame && playerFrameFill && config.frame) {
+                const frameConfig = config.frame;
+                console.log('Applying frame configuration:', frameConfig);
+                
+                // Show/hide frame
+                if (frameConfig.show === false) {
+                    console.log('Hiding frame');
+                    playerFrame.classList.add('hidden');
+                    playerFrameFill.classList.add('hidden');
+                } else {
+                    console.log('Showing frame');
+                    playerFrame.classList.remove('hidden');
+                    
+                    // Apply frame styling
+                    if (frameConfig.thickness) {
+                        playerFrame.style.borderWidth = frameConfig.thickness + 'px';
+                    }
+                    if (frameConfig.corner_radius) {
+                        playerFrame.style.borderRadius = frameConfig.corner_radius + 'px';
+                        playerFrameFill.style.borderRadius = frameConfig.corner_radius + 'px';
+                    }
+                    if (frameConfig.frame_color) {
+                        playerFrame.style.borderColor = frameConfig.frame_color;
+                    }
+                    
+                    // Update progress bar frame margin to match frame margin
+                    const frameMargin = parseInt(getComputedStyle(playerFrame).marginTop) || 20;
+                    if (progressBarContainer) {
+                        progressBarContainer.style.setProperty('--frame-margin', frameMargin + 'px');
+                    }
+                    
+                    // Apply fill color
+                    if (frameConfig.fill_color && frameConfig.fill_color !== 'transparent') {
+                        playerFrameFill.style.backgroundColor = frameConfig.fill_color;
+                        playerFrameFill.classList.remove('hidden');
+                    } else {
+                        playerFrameFill.style.backgroundColor = 'transparent';
+                        playerFrameFill.classList.add('hidden');
+                    }
+                }
+            }
+
             console.log('Configuration applied successfully');
         }
-        
+
         // Load initial configuration when page loads
         function loadConfiguration() {
             console.log('Attempting to load configuration from /api/config');
@@ -332,35 +742,111 @@
                         show_status: false,
                         artwork_size: 60,
                         layout: 'horizontal',
-                        show_artwork: true
+                        show_artwork: true,
+                        progress_bar: {
+                            show: true,
+                            position: 'bottom',
+                            width: 80,
+                            height: 6,
+                            spacing: 20,
+                            background_color: '#333333',
+                            fill_color: '#ff6b6b',
+                            border_radius: 3
+                        },
+                        frame: {
+                            show: true,
+                            thickness: 2,
+                            corner_radius: 10,
+                            frame_color: '#ffffff',
+                            fill_color: 'transparent'
+                        }
                     };
                     applyConfiguration(defaultConfig);
                 });
         }
-        
+
+        // Track user interaction globally
+        document.addEventListener('click', function () {
+            if (!userHasInteracted) {
+                console.log('User interaction detected - enabling audio');
+                userHasInteracted = true;
+                // If there's pending playback, start it now
+                if (pendingPlayback && audioPlayer && isAudioLoaded) {
+                    playAudio();
+                }
+            }
+        }, { once: true });
+
         // Request initial song data when connected
-        socket.on('connect', function() {
+        socket.on('connect', function () {
             console.log('Connected to server');
             socket.emit('request_song_update');
             // Load configuration after connecting
             setTimeout(loadConfiguration, 100); // Add small delay to ensure elements are ready
         });
-        
-        socket.on('disconnect', function() {
+
+        socket.on('disconnect', function () {
             console.log('Disconnected from server');
         });
-        
+
         // Also load configuration when page is ready
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             console.log('DOM Content Loaded - attempting to load configuration');
             setTimeout(loadConfiguration, 500); // Give time for socket to connect
         });
-        
+
         // Force load configuration after a delay as backup
-        setTimeout(function() {
+        setTimeout(function () {
             console.log('Backup configuration load triggered');
             loadConfiguration();
         }, 2000);
+
+        // Debug button handlers (only if debug mode is enabled)
+        {% if debug_mode %}
+        const testNextButton = document.getElementById('test-next');
+        const testConnectionButton = document.getElementById('test-connection');
+        const debugInfo = document.getElementById('debug-info');
+
+        if (testNextButton) {
+            testNextButton.addEventListener('click', function () {
+                console.log('Test Next Song button clicked');
+                socket.emit('song_ended');
+                debugInfo.textContent = 'Sent song_ended event';
+            });
+        }
+
+        if (testConnectionButton) {
+            testConnectionButton.addEventListener('click', function () {
+                console.log('Test Connection button clicked');
+                socket.emit('request_song_update');
+                debugInfo.textContent = 'Requested song update';
+            });
+        }
+
+        const testProgressButton = document.getElementById('test-progress');
+        if (testProgressButton) {
+            testProgressButton.addEventListener('click', function () {
+                console.log('Test Progress Bar button clicked');
+                demoProgressBar();
+                debugInfo.textContent = 'Testing progress bar animation';
+            });
+        }
+
+        // Update debug info with audio state
+        if (debugInfo) {
+            setInterval(function () {
+                if (audioPlayer) {
+                    debugInfo.innerHTML = `
+                        Audio: ${audioPlayer.paused ? 'Paused' : 'Playing'}<br>
+                        Time: ${audioPlayer.currentTime ? audioPlayer.currentTime.toFixed(1) : '0'}s / ${audioPlayer.duration ? audioPlayer.duration.toFixed(1) : '?'}s<br>
+                        Loaded: ${isAudioLoaded}<br>
+                        User Interacted: ${userHasInteracted}
+                    `;
+                }
+            }, 1000);
+        }
+        {% endif %}
     </script>
 </body>
+
 </html>
