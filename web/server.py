@@ -4,13 +4,14 @@ Provides display routes and configuration interface.
 """
 
 import logging
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_file, Response
 from flask_socketio import SocketIO, emit
 import threading
 import socket
 from typing import Optional, Dict, Any
 import json
 import os
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -207,6 +208,22 @@ class WebServer:
         def not_found(error):
             """Handle 404 errors."""
             return jsonify({'error': 'Not found'}), 404
+        
+        @self.app.route('/favicon.ico')
+        def favicon():
+            """Serve favicon from OBSmusic.ico file."""
+            try:
+                # Look for OBSmusic.ico in the project root (parent directory from web/)
+                favicon_path = Path(__file__).parent.parent / 'OBSmusic.ico'
+                if favicon_path.exists():
+                    logger.debug(f"Serving favicon from: {favicon_path}")
+                    return send_file(str(favicon_path), mimetype='image/x-icon')
+                else:
+                    logger.warning(f"OBSmusic.ico not found at {favicon_path}, returning 404 for favicon")
+                    return jsonify({'error': 'Favicon not found'}), 404
+            except Exception as e:
+                logger.error(f"Error serving favicon: {e}")
+                return jsonify({'error': 'Failed to serve favicon'}), 500
         
         @self.app.errorhandler(500)
         def internal_error(error):
@@ -551,6 +568,16 @@ class WebServer:
     def get_controls_url(self) -> str:
         """Get the controls page URL."""
         return f"http://{self.host}:{self.port}/controls"
+    
+    def get_current_port(self) -> Optional[int]:
+        """Get the current port the server is running on.
+        
+        Returns:
+            Current port number if server is running, None otherwise
+        """
+        if self.is_running:
+            return self.port
+        return None
 
 
 # Factory function for creating web server instance

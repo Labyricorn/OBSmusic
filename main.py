@@ -113,6 +113,15 @@ class MusicPlayerApp:
                 self.gui = MainWindow(self.playlist_manager, self.player_engine)
                 logger.info("GUI initialized")
                 
+                # Set server instances for dynamic hyperlink URL generation (if web is enabled)
+                if self.enable_web and self.web_server and self.controls_server:
+                    self.gui.set_server_instances(self.web_server, self.controls_server)
+                    logger.info("Server instances set for dynamic hyperlink generation")
+                    
+                    # Set up server event callbacks for URL refresh
+                    self._setup_server_event_callbacks()
+                    logger.info("Server event callbacks set up for hyperlink URL refresh")
+                
                 # Set up additional GUI callbacks for web updates (if web is enabled)
                 if self.enable_web:
                     self._setup_gui_web_integration()
@@ -270,6 +279,36 @@ class MusicPlayerApp:
         self.player_engine.set_on_state_changed(enhanced_state_callback)
         
         logger.info("Enhanced GUI callbacks with web integration")
+    
+    def _setup_server_event_callbacks(self):
+        """Set up callbacks for server events to refresh hyperlink URLs."""
+        try:
+            # Note: This is a placeholder for server event callback setup
+            # In a full implementation, servers would have event callbacks for:
+            # - Port changes
+            # - Start/stop events
+            # - Configuration updates
+            
+            # For now, we'll add a periodic refresh mechanism
+            def periodic_url_refresh():
+                """Periodically refresh hyperlink URLs to detect server changes."""
+                if self.gui and hasattr(self.gui, 'refresh_hyperlink_urls'):
+                    try:
+                        self.gui.refresh_hyperlink_urls()
+                    except Exception as e:
+                        logger.debug(f"Error in periodic URL refresh: {e}")
+                
+                # Schedule next refresh in 30 seconds
+                if self.running and self.gui and self.gui.root:
+                    self.gui.root.after(30000, periodic_url_refresh)
+            
+            # Start periodic refresh
+            if self.gui and self.gui.root:
+                self.gui.root.after(5000, periodic_url_refresh)  # First refresh after 5 seconds
+                logger.debug("Periodic hyperlink URL refresh scheduled")
+            
+        except Exception as e:
+            logger.error(f"Error setting up server event callbacks: {e}")
         
         # Override playlist manager methods to ensure player engine stays synchronized
         original_add_song = self.playlist_manager.add_song
