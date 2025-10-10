@@ -1,5 +1,7 @@
 # OBSmusic - Music Player with OBS Integration
 
+Made with Amazon's Kiro (https://kiro.dev/)
+
 A Python-based music player application that can play MP3 files with playlist management capabilities and serves a web interface for OBS streaming integration.
 
 [![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://python.org)
